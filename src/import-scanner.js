@@ -25,7 +25,7 @@ delimiter.push(inputNext());
 import {readFileSync} from "fs"
 //import {parser as lezerCpp} from "@lezer/cpp"
 import {parser as lezerCpp} from "./lezer-parser-cpp/dist/index.cjs"
-import { firstChild, nextSibling, getParent, nodeText, findNode, filterNodes, reduceNodes } from './lezer-tree-utils.js'
+import { firstChild, nextSibling, getParent, nodeText, findNode, filterNodes, reduceNodes, filterChildNodes } from './lezer-tree-utils.js'
 import {stringifyTree} from "./lezer-tree-format.js"
 import {getAsciiNames} from "./ascii-constants.js"
 import {format as prettierFormat} from "prettier"
@@ -213,6 +213,18 @@ const transpileOfNodeType = {
       while (node) {
         keys.push(nodeText(node, state))
         node = nextSibling(node)
+      }
+      if (convertStringToArrayNames.includes(name)) {
+        // convert string to array
+        //printNode(fullNode, state); console.dir({keys}); process.exit()
+        if (keys.length == 1) {
+          if (keys[0] == "empty") {
+            // someString.empty() -> (someArray.length == 0)
+            return `(${name}.length == 0)`
+          }
+        }
+        // TODO more
+        printNode(fullNode, state); console.dir({keys}); process.exit()
       }
       if (keys.slice(-1)[0] == "size") {
         // x.size() -> x.length
@@ -488,6 +500,35 @@ const transpileOfNodeType = {
     }
     return todoNode(fullNode, state)
   },
+  StructSpecifier(node, state) {
+    // cannot use unwrapNode because semicolons are missing in the parse tree
+    const fullNode = node
+    node = firstChild(node) // struct: "struct"
+    node = nextSibling(node) // TypeIdentifier: "State"
+    const name = nodeText(node, state)
+    node = nextSibling(node) // FieldDeclarationList: "{"
+    node = firstChild(node) // {: "{"
+    const fields = []
+    while (node) {
+      if (node.type.name == "FieldDeclaration") {
+        let n = firstChild(node)
+        let type = nodeText(n, state)
+        // TODO refactor tsType
+        const typesMap = {
+          uint32_t: "number",
+          bool: "boolean",
+        };
+        if (type in typesMap) {
+          type = typesMap[type];
+        }
+        n = nextSibling(n)
+        const key = nodeText(n, state)
+        fields.push(`${key}: ${type};`)
+      }
+      node = nextSibling(node)
+    }
+    return `\n/**\n  @typedef {{\n    ${fields.join("\n    ")}\n  }} ${name}\n*/\n`
+  },
 }
 
 function unwrapNode(node, state) {
@@ -546,6 +587,7 @@ transpileOfNodeType.BinaryExpression = unwrapNode
 transpileOfNodeType.SubscriptExpression = unwrapNode
 transpileOfNodeType.UnaryExpression = unwrapNode
 transpileOfNodeType.ArgumentList = unwrapNode
+transpileOfNodeType.ParenthesizedExpression = unwrapNode
 
 transpileOfNodeType[","] = copyNode
 transpileOfNodeType["("] = copyNode
@@ -648,6 +690,8 @@ let result = tree.topNode.type.transpile(tree.topNode, state)
 
 
 
+// static analysis
+
 // find "enum TokenType"
 // "enum TokenType" has the same order as the "externals" rule in tree-sitter grammar.js
 // these are "entry points" for the scan function
@@ -729,7 +773,7 @@ const scanFuncNode = findNode(scannerStructNode, (node) => {
 
 
 
-  // get name of second argument, usually "valid_symbols"
+// get name of second argument, usually "valid_symbols"
 let validSymbolsName = ""
 {
   let node = scanFuncNode
@@ -768,6 +812,77 @@ let validSymbolsName = ""
   }
 }
 //console.error(`validSymbolsName: ${validSymbolsName}`)
+
+
+
+// find state variables of "struct Scanner"
+/*
+example: tree-sitter-bash/src/scanner.cc
+namespace {
+  struct Scanner {
+    string heredoc_delimiter;
+    bool heredoc_is_raw;
+    bool started_heredoc;
+    bool heredoc_allows_indent;
+    string current_leading_word;
+  };
+}
+
+StructSpecifier: "struct Scanner {"
+  struct: "struct"
+  TypeIdentifier: "Scanner"
+  FieldDeclarationList: "{"
+    {: "{"
+    FunctionDefinition: "void skip(TSLexer *lexer) {"
+      ...
+    FunctionDefinition: "void advance(TSLexer *lexer) {"
+      ...
+    FieldDeclaration: "string heredoc_delimiter;"
+      TypeIdentifier: "string"
+      FieldIdentifier: "heredoc_delimiter"
+    FieldDeclaration: "bool heredoc_is_raw;"
+      PrimitiveType: "bool"
+      FieldIdentifier: "heredoc_is_raw"
+    FieldDeclaration: "bool started_heredoc;"
+      PrimitiveType: "bool"
+      FieldIdentifier: "started_heredoc"
+    FieldDeclaration: "bool heredoc_allows_indent;"
+      PrimitiveType: "bool"
+      FieldIdentifier: "heredoc_allows_indent"
+    FieldDeclaration: "string current_leading_word;"
+      TypeIdentifier: "string"
+      FieldIdentifier: "current_leading_word"
+    }: "}"
+*/
+
+const scannerStructFieldList = findNode(scannerStructNode,
+  (node) => (node.type.name == "FieldDeclarationList"))
+
+const scannerStructFieldNodes = filterChildNodes(scannerStructFieldList,
+  (node) => (node.type.name == "FieldDeclaration"))
+
+/*
+for (const node of scannerStructFieldNodes) {
+  printNode(node, state)
+}
+*/
+
+const scannerStateVars = scannerStructFieldNodes.map(
+  (node) => {
+    node = firstChild(node)
+    const type = nodeText(node, state)
+    node = nextSibling(node)
+    const name = nodeText(node, state)
+    if (type == "string") {
+      convertStringToArrayNames.push(name)
+    }
+    const value = ""; // TODO use actual init value if exists
+    return { type, name, value }
+  }
+)
+
+//console.dir({scannerStateVars})
+//process.exit()
 
 
 
@@ -820,6 +935,8 @@ else {
   for (const name of tokenTypeNames) {
     //result += `export const ${getTokenName(name)} = new ExternalTokenizer(/** @type {ETF} */ (input) => {\n`
     result += `export const ${getTokenName(name)} = new ExternalTokenizer((input) => {\n`
+    result += `/// workaround for https://github.com/microsoft/TypeScript/issues/9998\n`
+    result += `const inputNext = () => /** @type {number} */ input.next;\n`
     // TODO find conditional block or codepath
 
     // TODO patch conditions
@@ -959,6 +1076,66 @@ const fileHeader = [
   ``,
   // TODO restore. add only used charsugly
   ``,
+  ...(
+    scannerStateVars.length == 0 ? "" : [
+      `// scanner state`,
+      ...scannerStateVars.map(({name, type, value}) => {
+        // TODO refactor tsType
+        let tsType;
+        const typesMap = {
+          int: "number",
+          wstring: "string", // TODO what is wstring
+          bool: "boolean",
+          // TODO more
+        }
+        if (type in typesMap) {
+          type = typesMap[type]
+        }
+        let isConvertStringToArray = false
+        let needsType = false
+        if (type == "string") {
+          // quickfix: lezer-parser returns characters as numbers
+          // so instead of strings, we usually want Array<number>
+          type = "array"
+          tsType = "number[]"
+          // TODO find next parent scope
+          convertStringToArrayNames.push(name)
+          isConvertStringToArray = true
+          // TODO all arrays need type
+          needsType = true
+        }
+        if (!value) {
+          // we must set init value, otherwise ...
+          // let s; s += 'x'; s == 'undefinedx'
+          // let n; n += 1"; n == NaN
+          const initValueOfType = {
+            string: '""',
+            number: '0',
+            boolean: 'false',
+            array: '[]',
+            object: '{}',
+          }
+          // get init value, or make it explicitly undefined
+          value = initValueOfType[type] || "undefined"
+        }
+        return (
+          (
+            isConvertStringToArray
+            ? "/// converted string to number[]\n"
+            : ""
+          ) +
+          (
+            needsType
+            ? `/** @type {${tsType || type}} */\n`
+            : ""
+          ) +
+          `let ${name} = ${value};`
+        );
+      }),
+      ``,
+    ]
+  ),
+
 ].map(line => line + "\n").join("")
 
 // TODO restore

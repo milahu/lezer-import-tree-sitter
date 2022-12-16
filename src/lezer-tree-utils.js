@@ -332,6 +332,31 @@ export function filterNodes(parentNode, condition) {
 
 // based on filterNodes
 /**
+  @param {Node|Tree} parentNode
+  @param {(node: Node) => boolean} condition
+  @return {Node[]}
+*/
+export function filterChildNodes(parentNode, condition) {
+  const result = []
+  if (parentNode.topNode) {
+    // parentNode is a Tree
+    parentNode = parentNode.topNode
+  }
+  let node = parentNode
+  node = firstChild(node) // Left
+  while (node) {
+    if (condition(node)) {
+      result.push(node)
+    }
+    node = nextSibling(node)
+  }
+  return result
+}
+
+
+
+// based on filterNodes
+/**
   @template T
   @param {Node|Tree} parentNode
   @param {(acc: T, node: Node) => T} reducer
