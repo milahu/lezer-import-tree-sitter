@@ -45,7 +45,7 @@ const transpileOfNodeType = {
   },
   UpdateExpression(node, state) {
     // example: i++
-    return unwrapNode(node, state) + ";\n"
+    return unwrapNode(node, state)
   },
   LineComment(node, state) {
     return nodeText(node, state) + "\n"
@@ -74,8 +74,9 @@ const transpileOfNodeType = {
     keys = keys.map(key => (key in keysMap) ? keysMap[key] : key)
     return (
       //"\n" + humanFormatNode(node, state, "/// @todo(FieldExpression) " + JSON.stringify(text)) +
-      "\n" + humanFormatNode(fullNode, state, "/// @todo(FieldExpression) " + JSON.stringify(text)) +
+      //"\n" + humanFormatNode(fullNode, state, "/// @todo(FieldExpression) " + JSON.stringify(text)) +
       //"\n" + commentLines("@todo(FieldExpression) " + JSON.stringify(text)) +
+      "\n" +
       name + "." + keys.join(".")
     )
   },
@@ -281,12 +282,16 @@ const transpileOfNodeType = {
   },
   CharLiteral(node, state) {
     const text = nodeText(node, state);
+    /*
+    // this fails at '\\0' -> SyntaxError: Bad escaped character in JSON
     const char = JSON.parse('"' + (
       text
       .slice(1, -1) // unwrap single quotes
       .replace("\\'", "'") // remove escape
       .replace('"', '\\"') // add escape
     ) + '"')
+    */
+    const char = removeSlashes(text.slice(1, -1))
     // eval char to number
     const code = char.charCodeAt(0)
     const name = state.asciiNames[code]
@@ -489,6 +494,22 @@ const transpileOfNodeType = {
     }
     return `{ ${keyvals.join(", ")} }`
   },
+  CaseStatement(node, state) {
+    //return todoNode(node, state)
+    let result = ""
+    node = firstChild(node) // "case"
+    node = nextSibling(node) // value
+    const value = node.type.format(node, state)
+    result += `case ${value}:\n`
+    // statements ...
+    node = nextSibling(node)
+    while (node) {
+      result += node.type.format(node, state)
+      node = nextSibling(node)
+    }
+    result += "\n"
+    return result
+  },
 }
 
 function unwrapNode(node, state) {
@@ -539,6 +560,8 @@ transpileOfNodeType.namespace = unwrapNode
 // code block: { ... }
 transpileOfNodeType.CompoundStatement = unwrapNode
 //transpileOfNodeType.ReturnStatement = unwrapNode
+transpileOfNodeType.SwitchStatement = unwrapNode
+//transpileOfNodeType.CaseStatement = unwrapNode // no. colon is missing
 
 transpileOfNodeType.WhileStatement = unwrapNode
 //transpileOfNodeType.ForStatement = unwrapNode // no. semicolons are missing
@@ -576,6 +599,8 @@ transpileOfNodeType.else = copyNodeSpace
 transpileOfNodeType.continue = copyNodeSpace
 transpileOfNodeType.break = copyNodeSpace
 transpileOfNodeType.return = copyNodeSpace
+transpileOfNodeType.switch = copyNodeSpace
+transpileOfNodeType.case = copyNodeSpace
 
 /*
 transpileOfNodeType.ForStatement = unwrapNode
