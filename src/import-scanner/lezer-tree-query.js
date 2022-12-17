@@ -1,49 +1,9 @@
-export function getSourceProp(node, state) {
-  const source = {
-    file: '(string)', // TODO nix file path
-    from: node.from,
-    to: node.to,
-  };
-  const setLineColumn = (lambdaSource) => {
-    const sourceLines = state.source.split('\n');
-    //console.log(`setLineColumn lambdaSource`, lambdaSource)
-    //console.log(`setLineColumn sourceLines`, sourceLines)
-    let lineFrom = 0;
-    for (let lineIdx = 0; lineIdx < sourceLines.length; lineIdx++) {
-      const line = sourceLines[lineIdx];
-      const lineTo = lineFrom + line.length;
-      if (lineFrom <= lambdaSource.from && lambdaSource.from <= lineTo) {
-        // found line
-        lambdaSource._line = lineIdx + 1; // lines are 1 based in Nix
-        lambdaSource._column = (lambdaSource.from - lineFrom) + 1; // columns are 1 based in Nix
-        return;
-      }
-      lineFrom += line.length + 1; // +1 for \n
-    }
-    // error
-    lambdaSource._line = 'not';
-    lambdaSource._column = 'found';
-  }
-  Object.defineProperty(source, 'line', {
-    enumerable: true,
-    get() {
-      if (!this._line) setLineColumn(this);
-      return this._line;
-    },
-  });
-  Object.defineProperty(source, 'column', {
-    enumerable: true,
-    get() {
-      if (!this._column) setLineColumn(this);
-      return this._column;
-    },
-  });
-  return source;
-}
+/** @typedef {import("@lezer/common").SyntaxNode} SyntaxNode */
+/** @typedef {import("@lezer/common").Tree} Tree */
 
 
 
-/** @type {(node: SyntaxNode, label: string) => void} */
+/** @type {(node: SyntaxNode, state: any, label: string) => void} */
 export function printNode(node, state, env, options = {}) {
   if (!options) options = {};
   const label = options.label || '';
@@ -60,7 +20,7 @@ export function printNode(node, state, env, options = {}) {
 
 
 
-/** @type {function(SyntaxNode): SyntaxNode} */
+/** @type {function(SyntaxNode): SyntaxNode|null} */
 function skipComments(node) {
   //checkInfiniteLoop();
   while (
@@ -76,7 +36,7 @@ function skipComments(node) {
 
 
 
-/** @type {function(SyntaxNode): SyntaxNode} */
+/** @type {function(SyntaxNode): SyntaxNode|null} */
 export function firstChild(node) {
   if (!node) return null;
   if (!(node = node.firstChild)) {
@@ -92,7 +52,7 @@ export function firstChild(node) {
 
 
 
-/** @type {function(SyntaxNode): SyntaxNode} */
+/** @type {function(SyntaxNode): SyntaxNode|null} */
 export function nextSibling(node) {
   if (!node) return null;
   if (!(node = node.nextSibling)) {
@@ -127,76 +87,14 @@ export function nodeText(node, state) {
 
 
 
-/** @type {function(SyntaxNode, State, Env): any} */
-export function callThunk(node, state, env) {
-  if (!node.type.thunk) {
-    throw new NixEvalNotImplemented(`thunk is undefined for type ${node.type.name}`);
-  }
-  return node.type.thunk(node, state, env);
-}
-// regex to inline callThunk:
-// a: callThunk\((.*?), (.*?), (.*?)\)
-// b: $1.type.thunk($1, $2, $3)
-
-
-
-// alias so we can shadow Set in nix-thunks
-export class JavascriptSet extends Set {
-}
-
-
-
-// different type than string
-export class Path {
-  constructor(path) {
-    this.path = path
-  }
-  toString() {
-    return this.path
-  }
-}
-
-
-
-// nix/src/libexpr/parser-tab.cc
-// static Expr * stripIndentation
-
-export function stripIndentation(string) {
-
-  if (string == "") return string
-
-  const lines = string.split("\n")
-
-  // remove first line if empty or spaces
-  if (/^ *$/.test(lines[0])) lines.shift()
-
-  // right trim last line
-  // note: keep empty last line -> unix line format, newline at end of file
-  lines[lines.length - 1] = lines[lines.length - 1].replace(/ +$/, '')
-
-  let minIndent = 1000000
-  for (const line in lines) {
-    //// ignore whitespace lines
-    //if (/^ *$/.test(line)) continue
-    const curIndent = line.match(/^ */)[0].length
-    // ignore whitespace lines
-    if (curIndent == line.length) continue
-    if (curIndent < minIndent) minIndent = curIndent
-  }
-
-  return lines.map(line => line.slice(minIndent)).join("\n")
-}
-
-
-
 // based on stringifyTree
 /**
-  @param {Node|Tree} parentNode
-  @param {(node: Node) => boolean} condition
-  @return {Node|undefined}
+  @param {SyntaxNode|Tree} parentNode
+  @param {(node: SyntaxNode) => boolean} condition
+  @return {SyntaxNode|undefined}
 */
 export function findNode(parentNode, condition) {
-  if (parentNode.topNode) {
+  if ("topNode" in parentNode) {
     // parentNode is a Tree
     parentNode = parentNode.topNode
   }
@@ -260,9 +158,9 @@ export function findNode(parentNode, condition) {
 
 // based on findNode
 /**
-  @param {Node|Tree} parentNode
-  @param {(node: Node) => boolean} condition
-  @return {Node[]}
+  @param {SyntaxNode|Tree} parentNode
+  @param {(node: SyntaxNode) => boolean} condition
+  @return {SyntaxNode[]}
 */
 export function filterNodes(parentNode, condition) {
   const result = []
@@ -332,9 +230,9 @@ export function filterNodes(parentNode, condition) {
 
 // based on filterNodes
 /**
-  @param {Node|Tree} parentNode
-  @param {(node: Node) => boolean} condition
-  @return {Node[]}
+  @param {SyntaxNode|Tree} parentNode
+  @param {(node: SyntaxNode) => boolean} condition
+  @return {SyntaxNode[]}
 */
 export function filterChildNodes(parentNode, condition) {
   const result = []
@@ -358,8 +256,8 @@ export function filterChildNodes(parentNode, condition) {
 // based on filterNodes
 /**
   @template T
-  @param {Node|Tree} parentNode
-  @param {(acc: T, node: Node) => T} reducer
+  @param {SyntaxNode|Tree} parentNode
+  @param {(acc: T, node: SyntaxNode) => T} reducer
   @param {T} initValue
   @return {T}
 */
@@ -423,4 +321,3 @@ export function reduceNodes(parentNode, reducer, initValue) {
   }
   return acc
 }
-

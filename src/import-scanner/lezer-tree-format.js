@@ -1,7 +1,9 @@
-// called from nix-eval-js/demo/src/treeview.jsx
+/** @typedef {import("@lezer/common").SyntaxNode} SyntaxNode */
+/** @typedef {import("@lezer/common").Tree} Tree */
 
-/** @param {Tree | TreeNode} tree */
 
+
+/** @type {(node: Tree | SyntaxNode, options: any) => string} */
 export function stringifyTree(tree, options) {
 
   if (!options) options = {};
@@ -90,4 +92,36 @@ export function stringifyTree(tree, options) {
   //console.log(`stringifyTree: final depth: ${depth}`)
 
   return result;
+}
+
+
+
+/** @type {(node: SyntaxNode, state: any, label: string) => string} */
+export function formatNode(node, state, label = "") {
+  const s = stringifyTree(node, {
+    source: state.source,
+    human: true,
+    firstLine: true,
+  })
+  if (label) {
+    return s.split("\n").map(line => label + ": " + line).join("\n")
+  }
+  else {
+    return s
+  }
+}
+
+
+
+/** @type {(node: SyntaxNode, state: any, label: string) => void} */
+export function printNode(node, state, label = "") {
+  console.log(formatNode(node, state, label))
+}
+
+
+
+/** @type {(node: SyntaxNode, state: any, label: string) => void} */
+export function exitNode(node, state, label = "") {
+  printNode(node, state, label)
+  process.exit()
 }
