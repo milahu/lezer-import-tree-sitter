@@ -2,23 +2,29 @@
 
 /*
 
-FIXME convert number to string
-or better: convert string to array
+TODO proper handling of scopes.
+currently, all state is global,
+but we want to limit the scope of codemods,
+because the same variable name
+can have different meanings in different scopes.
 
-let delimiter = ""; // string
-delimiter += inputNext(); // bad: string + number
-delimiter += String.fromCharCode(inputNext()); // good: string + string
+TODO design:
+we have two phases: analyze and codegen.
 
-typescript does not help here
--> eslint rule @typescript-eslint/restrict-plus-operands
-https://stackoverflow.com/a/56606330/10440128
--> autofix with custom eslint plugin?
-find all variables in scope, fix read + write access
+the analyze phase will ...
+parse the C++ source code,
+build a tree of scopes,
+populate these scopes with data for the codegen phase.
 
-ideally, use an array
+data for codegen? for example:
+what variables are converted from string to number[]?
+what is the scope of these variables?
+what C++ types are converted to typescript types?
+what C++ structs are used? what is their scope?
+what ascii characters are used?
 
-let delimiter = []; // Array<number>
-delimiter.push(inputNext());
+the codegen phase is a tree visitor,
+starting at specific entry points in the parse tree.
 
 */
 
