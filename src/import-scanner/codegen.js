@@ -173,6 +173,16 @@ const transpileOfNodeType = {
         `input.advance()`
       )
     }
+    if (name == "lexer->mark_end") {
+      // lexer->mark_end(lexer)
+      // https://tree-sitter.github.io/tree-sitter/creating-parsers
+      // void (*mark_end)(TSLexer *)
+      // A function for marking the end of the recognized token.
+      return (
+        `/// @todo token name. original call: ${JSON.stringify(nodeText(fullNode, state))}\n` +
+        `input.acceptToken(TODO_TOKEN_NAME)`
+      )
+    }
     return unwrapNode(fullNode, state)
     //return humanFormatNode(fullNode, state, "/// @todo CallExpression")
 
