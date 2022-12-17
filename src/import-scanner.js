@@ -34,8 +34,8 @@ import {parser as lezerCpp} from "./lezer-parser-cpp/dist/index.cjs"
 //import {stringifyTree} from "./import-scanner/lezer-tree-format.js"
 import {getAsciiNames} from "./import-scanner/ascii-constants.js"
 import { analyze } from "./import-scanner/analyze.js"
-import { getCode, lintCode, formatCode } from "./import-scanner/codegen.js"
-import { formatNode, printNode, exitNode } from './import-scanner/lezer-tree-format.js'
+import { getCode, lintCode, formatCode, formatNode } from "./import-scanner/codegen.js"
+import { printNode, exitNode } from './import-scanner/lezer-tree-format.js'
 
 
 

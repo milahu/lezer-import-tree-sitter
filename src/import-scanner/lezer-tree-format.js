@@ -97,7 +97,8 @@ export function stringifyTree(tree, options) {
 
 
 /** @type {(node: SyntaxNode, state: any, label: string) => string} */
-export function formatNode(node, state, label = "") {
+//export function formatNode(node, state, label = "") {
+export function humanFormatNode(node, state, label = "") {
   const s = stringifyTree(node, {
     source: state.source,
     human: true,
@@ -115,7 +116,7 @@ export function formatNode(node, state, label = "") {
 
 /** @type {(node: SyntaxNode, state: any, label: string) => void} */
 export function printNode(node, state, label = "") {
-  console.log(formatNode(node, state, label))
+  console.error(humanFormatNode(node, state, label))
 }
 
 

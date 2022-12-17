@@ -7,7 +7,7 @@ import {format as prettierFormat} from "prettier"
 
 import { firstChild, nextSibling, getParent, nodeText, findNode,
   filterNodes, reduceNodes, filterChildNodes } from './lezer-tree-query.js'
-import { formatNode, printNode, exitNode } from './lezer-tree-format.js'
+import { humanFormatNode, printNode, exitNode } from './lezer-tree-format.js'
 
 export function commentLines(s, label = "") {
   if (label) {
@@ -72,8 +72,8 @@ const transpileOfNodeType = {
     }
     keys = keys.map(key => (key in keysMap) ? keysMap[key] : key)
     return (
-      //"\n" + formatNode(node, state, "/// @todo(FieldExpression) " + JSON.stringify(text)) +
-      "\n" + formatNode(fullNode, state, "/// @todo(FieldExpression) " + JSON.stringify(text)) +
+      //"\n" + humanFormatNode(node, state, "/// @todo(FieldExpression) " + JSON.stringify(text)) +
+      "\n" + humanFormatNode(fullNode, state, "/// @todo(FieldExpression) " + JSON.stringify(text)) +
       //"\n" + commentLines("@todo(FieldExpression) " + JSON.stringify(text)) +
       name + "." + keys.join(".")
     )
@@ -127,7 +127,7 @@ const transpileOfNodeType = {
           throw new Error("TODO CallExpression to FieldExpression: " + name + "." + keys.join("."))
         }
         return (
-          //"\n" + formatNode(fullNode, state, "/// @todo(CallExpression) " + JSON.stringify(text)) +
+          //"\n" + humanFormatNode(fullNode, state, "/// @todo(CallExpression) " + JSON.stringify(text)) +
           //"\n" + commentLines("@todo(FieldExpression) " + JSON.stringify(text)) +
           //"\n" +
           name + "." + keys.join(".")
@@ -142,7 +142,7 @@ const transpileOfNodeType = {
     node = nextSibling(node)
     // arguments
     if (name == "lexer->advance") {
-      //return `input.advance(${transpileNode(node, state)}) // TODO arguments\n`
+      //return `input.advance(${formatNode(node, state)}) // TODO arguments\n`
       // https://tree-sitter.github.io/tree-sitter/creating-parsers
       // void (*advance)(TSLexer *, bool skip)
       // A function for advancing to the next character.
@@ -174,7 +174,7 @@ const transpileOfNodeType = {
       )
     }
     return unwrapNode(fullNode, state)
-    //return formatNode(fullNode, state, "/// @todo CallExpression")
+    //return humanFormatNode(fullNode, state, "/// @todo CallExpression")
 
     /*
     const text = nodeText(node, state)
@@ -221,29 +221,29 @@ const transpileOfNodeType = {
     const operatorText = node ? nodeText(middleOrRightNode, state) : "="
     const rightNode = node ? node : middleOrRightNode
     if (name == "lexer->result_symbol") {
-      //return `input.advance(${transpileNode(node, state)}) // TODO arguments\n`
+      //return `input.advance(${formatNode(node, state)}) // TODO arguments\n`
       const tokenName = getTokenName(nodeText(rightNode, state), state)
       return (
         "\n" +
         //commentLines("TODO arguments?\n" + nodeText(fullNode, state)) +
         `/// TODO defer acceptToken?\n` +
-        `input.acceptToken(${state.tokenNamePrefix}${tokenName});\n`
+        `input.acceptToken(${state.tokenNamePrefix}${tokenName})`
       )
     }
     if (state.convertStringToArrayNames.has(name)) {
       // convert string to array
       return (
         `/// converted string to number[]\n` +
-        `${name}.push(${transpileNode(rightNode, state)})`
+        `${name}.push(${formatNode(rightNode, state)})`
       )
     }
     //return unwrapNode(fullNode, state) // wrong, "=" is missing
-    //return formatNode(fullNode, state, "/// @todo CallExpression")
+    //return humanFormatNode(fullNode, state, "/// @todo CallExpression")
     return (
       //todoNode(fullNode, state) + "\n" +
       name +
       operatorText +
-      transpileNode(rightNode, state)
+      formatNode(rightNode, state)
     )
 
     /*
@@ -296,7 +296,7 @@ const transpileOfNodeType = {
   Declaration(node, state) {
     // TODO?
     const fullNode = node
-    //console.error("fullNode", formatNode(fullNode, state))
+    //console.error("fullNode", humanFormatNode(fullNode, state))
     node = firstChild(node)
     let type = nodeText(node, state)
     node = nextSibling(node)
@@ -317,7 +317,7 @@ const transpileOfNodeType = {
       node = firstChild(node)
       name = nodeText(node, state)
       node = nextSibling(node)
-      value = transpileNode(node, state)
+      value = formatNode(node, state)
     }
     else {
       /*
@@ -382,7 +382,7 @@ const transpileOfNodeType = {
     if (node.type.name == ")") {
       // for (;;) == while (true)
       node = nextSibling(node) // body: { ... }
-      return `while (true) ` + transpileNode(node, state) + "\n"
+      return `while (true) ` + formatNode(node, state) + "\n"
     }
     return todoNode(fullNode, state)
   },
@@ -421,6 +421,7 @@ function unwrapNode(node, state) {
   node = firstChild(node)
   let result = ""
   while (node) {
+    //result += `/// @unwrap ${node.type.name}\n`
     result += node.type.format(node, state)
     node = nextSibling(node)
   }
@@ -432,7 +433,7 @@ function ignoreNode(_node, _state) {
 }
 
 function todoNode(node, state) {
-  const nodeStr = formatNode(node, state)
+  const nodeStr = humanFormatNode(node, state)
   return "\n" + commentLines(nodeStr, `todo(${node.type.name})`)
 }
 
@@ -510,7 +511,7 @@ transpileOfNodeType["for"] = copyNode
 const debug = true
 
 
-export function transpileNode(node, state) {
+export function formatNode(node, state) {
   const debug = false
   if (!(node.type.name in transpileOfNodeType)) {
     return todoNode(node, state)
@@ -703,7 +704,7 @@ export function getCode(tree, state) {
     code += `/// workaround for https://github.com/microsoft/TypeScript/issues/9998\n`
     code += `const inputNext = () => /** @type {number} */ input.next;\n`
     // TODO transpile the scan function
-    //result += formatNode(scanFuncNode, state, "/// @fn scan")
+    //result += humanFormatNode(scanFuncNode, state, "/// @fn scan")
 
     let node = state.scanFuncNode
     node = firstChild(node)
@@ -712,9 +713,9 @@ export function getCode(tree, state) {
     // function head
     node = nextSibling(node)
     // function body
-    //result += formatNode(node, state, "/// @fn scan body")
+    //result += humanFormatNode(node, state, "/// @fn scan body")
     if (node.type.name == "CompoundStatement") {
-      // code block -> unwrap
+      // if (cond) { expr... }
       node = firstChild(node) // "{"
       node = nextSibling(node)
       while (node) {
@@ -725,7 +726,7 @@ export function getCode(tree, state) {
       }
     }
     else {
-      // TODO verify. not reachable?
+      // if (cond) expr
       code += node.type.format(node, state)
     }
     // this causes double curly braces: { { ... } }
@@ -754,25 +755,26 @@ export function getCode(tree, state) {
       // function head
       node = nextSibling(node)
       // function body
-      //result += formatNode(node, state, "/// @fn scan body")
+      //result += humanFormatNode(node, state, "/// @fn scan body")
       if (node.type.name == "CompoundStatement") {
-        // code block -> unwrap
+        // if (cond) { expr... }
         node = firstChild(node) // "{"
         node = nextSibling(node)
         while (node) {
           if (node.type.name != "}") {
+            //code += `/// @node ${node.type.name}\n`
             code += node.type.format(node, state)
           }
           node = nextSibling(node)
         }
       }
       else {
-        // TODO verify. not reachable?
+        // if (cond) expr
+        //code += `/// @node ${node.type.name}\n`
         code += node.type.format(node, state)
       }
       // this causes double curly braces: { { ... } }
       //result += node.type.format(node, state)
-
       code += `})\n`
     }
   }
