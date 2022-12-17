@@ -128,6 +128,7 @@ const state = {
   usedAsciiCodes: new Set(),
   convertStringToArrayNames: new Set(),
   tokenTypeNames: [],
+  structFields: {},
 }
 
 state.tokenNamePrefix = state.tokensObjectName + "."

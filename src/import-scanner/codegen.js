@@ -327,6 +327,21 @@ const transpileOfNodeType = {
       node = firstChild(node)
       name = nodeText(node, state)
       node = nextSibling(node)
+      if (node.type.name == "InitializerList") {
+        /*
+          example:
+          Declaration: "State state = {false, 0, 0, 0};"
+            TypeIdentifier: "State"
+            InitDeclarator: "state = {false, 0, 0, 0}"
+              Identifier: "state"
+              InitializerList: "{false, 0, 0, 0}"
+                {: "{"
+                False: "false"
+                ...
+        */
+        // struct fields are declared in StructSpecifier
+        node.structType = type;
+      }
       value = formatNode(node, state)
     }
     else {
@@ -376,6 +391,7 @@ const transpileOfNodeType = {
 
     return (
       //"\n" +
+      //todoNode(fullNode, state) + "\n" +
       `/** @type {${tsType || type}} */\n` +
       `${isConst ? "const" : "let"} ${name}` + " = " + value + ";\n"
     )
@@ -404,6 +420,7 @@ const transpileOfNodeType = {
     const name = nodeText(node, state)
     node = nextSibling(node) // FieldDeclarationList: "{"
     node = firstChild(node) // {: "{"
+    const fieldStrings = []
     const fields = []
     while (node) {
       if (node.type.name == "FieldDeclaration") {
@@ -419,11 +436,57 @@ const transpileOfNodeType = {
         }
         n = nextSibling(n)
         const key = nodeText(n, state)
-        fields.push(`${key}: ${type};`)
+        fieldStrings.push(`${key}: ${type};`)
+        fields.push({ name: key, type })
       }
       node = nextSibling(node)
     }
-    return `\n/**\n  @typedef {{\n    ${fields.join("\n    ")}\n  }} ${name}\n*/\n`
+    // TODO use local scope
+    state.structFields[name] = fields
+    return `\n/**\n  @typedef {{\n    ${fieldStrings.join("\n    ")}\n  }} ${name}\n*/\n`
+  },
+  // init value of struct variable.
+  // must handle this in Declaration,
+  // because we need the struct type
+  InitializerList(node, state) {
+    if (!node.structType) {
+      return (
+        `\n/// @fixme InitializerList: node.structType is missing\n` +
+        todoNode(node, state)
+      )
+    }
+    /*
+      example:
+      Declaration: "State state = {false, 0, 0, 0};"
+        TypeIdentifier: "State"
+        InitDeclarator: "state = {false, 0, 0, 0}"
+          Identifier: "state"
+          InitializerList: "{false, 0, 0, 0}"
+            {: "{"
+            False: "false"
+            ,: ","
+            Number: "0"
+            ,: ","
+            Number: "0"
+            ,: ","
+            Number: "0"
+            }: "}"
+    */
+    const fields = state.structFields[node.structType]
+    node = firstChild(node) // "{"
+    node = nextSibling(node) // value or "}"
+    let fieldIdx = 0
+    const keyvals = []
+    while (node) {
+      if (node.type.name != "," && node.type.name != "}") {
+        // value
+        const { name, type } = fields[fieldIdx]
+        keyvals.push(`${name}: ${formatNode(node, state)}`)
+        fieldIdx++
+      }
+      node = nextSibling(node)
+    }
+    return `{ ${keyvals.join(", ")} }`
   },
 }
 
