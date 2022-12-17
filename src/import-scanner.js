@@ -29,9 +29,7 @@ starting at specific entry points in the parse tree.
 */
 
 import {readFileSync} from "fs"
-//import {parser as lezerCpp} from "@lezer/cpp"
-import {parser as lezerCpp} from "./lezer-parser-cpp/dist/index.cjs"
-//import {stringifyTree} from "./import-scanner/lezer-tree-format.js"
+import {parser as lezerCpp} from "@lezer/cpp"
 import {getAsciiNames} from "./import-scanner/ascii-constants.js"
 import { analyze } from "./import-scanner/analyze.js"
 import { getCode, lintCode, formatCode, formatNode } from "./import-scanner/codegen.js"
