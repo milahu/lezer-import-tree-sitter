@@ -516,6 +516,12 @@ const transpileOfNodeType = {
     result += "\n"
     return result
   },
+  SubscriptExpression(node, state) {
+    return (
+      todoNode(node, state) +
+      unwrapNode(node, state)
+    )
+  },
 }
 
 function unwrapNode(node, state) {
@@ -574,7 +580,7 @@ transpileOfNodeType.WhileStatement = unwrapNode
 transpileOfNodeType.ConditionClause = unwrapNode
 transpileOfNodeType.IfStatement = unwrapNode
 transpileOfNodeType.BinaryExpression = unwrapNode
-transpileOfNodeType.SubscriptExpression = unwrapNode
+//transpileOfNodeType.SubscriptExpression = unwrapNode // no. must handle valid_symbols[X]
 transpileOfNodeType.UnaryExpression = unwrapNode
 transpileOfNodeType.ArgumentList = unwrapNode
 transpileOfNodeType.ParenthesizedExpression = unwrapNode
