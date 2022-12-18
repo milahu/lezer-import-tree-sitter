@@ -57,7 +57,9 @@ const eslintConfig = {
   ],
   "rules": {
     //"no-unused-vars": "off",
-    "no-constant-condition": "off", // while (true)
+    // good: while (true)
+    // bad: if (true)
+    "no-constant-condition": ["error", { "checkLoops": false }],
     "curly": ["error", "all"],
     // TODO remove?
     // FIXME not working
