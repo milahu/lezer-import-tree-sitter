@@ -702,7 +702,7 @@ function getFileHeader(state) {
         `// ascii chars`,
         (
           "const " +
-          Array.from(state.usedAsciiCodes.values()).sort().map(code => `${state.asciiNames[code]} = ${code}`).join(", ") +
+          Array.from(state.usedAsciiCodes.values()).sort((a, b) => (a - b)).map(code => `${state.asciiNames[code]} = ${code}`).join(", ") +
           ";"
         ),
         ``,
