@@ -238,7 +238,6 @@ const transpileOfNodeType = {
       return (
         "\n" +
         //commentLines("TODO arguments?\n" + nodeText(fullNode, state)) +
-        `/// TODO defer acceptToken?\n` +
         `input.acceptToken(${state.tokenNamePrefix}${tokenName})`
       )
     }
