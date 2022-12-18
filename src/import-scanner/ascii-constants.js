@@ -12,6 +12,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const ascii_list = JSON.parse(readFileSync(__dirname + "/ascii-constants.json", "utf8"))
 
+// convention:
+// camelCase for char constants
+// PascalCase for scanner functions
+
 function toPascalCase(s) {
   return s.replace(/(\w)(\w*)(\s*)/g,
     function(_g0, g1, g2) {
@@ -40,7 +44,11 @@ export function getAsciiNames() {
       // control char
       const s = JSON.stringify(String.fromCharCode(dec))
       //lines.push(`const ${sym} = ${dec} // ${name}${s.length == 4 ? ` = ${s}` : ""}`)
-      names.push(sym)
+      let name = toCamelCase(sym)
+      if (["return", "null"].includes(name)) { // collision with javascript keyword?
+        name = `${name}_` // append underscore
+      }
+      names.push(name)
     }
     else {
       // printable char
