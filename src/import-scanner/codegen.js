@@ -696,7 +696,7 @@ function getFileHeader(state) {
     `// @ts-ignore Cannot find module - file is generated`,
     `import * as ${state.tokensObjectName} from "./parser.terms.js"`,
     ``,
-    (
+    ...(
       state.usedAsciiCodes.size > 0
       ? [
         `// ascii chars`,
@@ -707,7 +707,7 @@ function getFileHeader(state) {
         ),
         ``,
       ]
-      : ""
+      : []
     ),
 
     /*
