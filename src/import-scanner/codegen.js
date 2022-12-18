@@ -448,7 +448,7 @@ const transpileOfNodeType = {
     }
     // TODO use local scope
     state.structFields[name] = fields
-    return `\n/**\n  @typedef {{\n    ${fieldStrings.join("\n    ")}\n  }} ${name}\n*/\n`
+    return `\n/**\n* @typedef {{\n*   ${fieldStrings.join("\n*   ")}\n* }} ${name}\n*/\n`
   },
   // init value of struct variable.
   // must handle this in Declaration,
