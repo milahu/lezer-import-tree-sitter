@@ -17,6 +17,10 @@ export function commentLines(s, label = "") {
   return s.trim().split("\n").map(line => "/// " + line).join("\n") + "\n"
 }
 
+function commentBlock(s, label = "") {
+  return `/* ${s.replace(/\*\//g, "*\\/")} */`
+}
+
 /** convert tree-sitter to lezer-parser token name */
 export function getTokenName(name, state) {
   //console.error(`getTokenName: tokenName ${name} -> externalName ${externalOfTokenType[name]}`)
@@ -915,7 +919,7 @@ export async function lintCode(code, eslintConfig) {
     const finder = lineColumn(code)
     //console.log(result) // debug: print ugly code
     for (const msg of lintResults[0].messages) {
-      const idx = finder.toIndex(msg.line, 1)
+      const idx = finder.toIndex(msg.line, msg.column)
       // debug
       /*
       console.dir({
@@ -926,7 +930,7 @@ export async function lintCode(code, eslintConfig) {
       */
       // ${msg.line}:${msg.column} is the location in the ugly code, so its only useful for debugging
       //ms.appendRight(idx, commentLines(`eslint: ${msg.ruleId}: ${msg.message} ${msg.line}:${msg.column}`));
-      ms.appendRight(idx, commentLines(`eslint: ${msg.ruleId}: ${msg.message}`));
+      ms.appendRight(idx, commentBlock(`eslint: ${msg.ruleId}: ${msg.message}`));
     }
     code = ms.toString()
   }
