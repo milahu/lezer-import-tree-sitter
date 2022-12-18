@@ -116,7 +116,7 @@ export function analyze(tree, state) {
 
 
   // get name of second argument, usually "valid_symbols"
-  let validSymbolsName = ""
+  state.validSymbolsName = ""
   {
     let node = state.scanFuncNode
     node = firstChild(node)
@@ -145,7 +145,7 @@ export function analyze(tree, state) {
     // node: PointerDeclarator: "*valid_symbols"
     if (node.type.name == "PointerDeclarator") {
       node = firstChild(node) // Identifier: "valid_symbols"
-      validSymbolsName = nodeText(node, state)
+      state.validSymbolsName = nodeText(node, state)
     }
     else {
       console.error(`not implemented: param node type ${node.type.name}`)

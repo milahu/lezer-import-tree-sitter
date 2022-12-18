@@ -525,9 +525,35 @@ const transpileOfNodeType = {
     return result
   },
   SubscriptExpression(node, state) {
+    /*
+      example:
+      SubscriptExpression: "valid_symbols[VARIABLE_NAME]"
+        Identifier: "valid_symbols"
+        [: "["
+        Identifier: "VARIABLE_NAME"
+        ]: "]"
+    */
+    const fullNode = node
+    node = firstChild(node)
+    const name = node.type.format(node, state)
+    node = nextSibling(node) // "["
+    node = nextSibling(node)
+    const key = node.type.format(node, state)
+    // must trim name and key, because copyNodeSpace adds whitespace
+    if (name.trim() == state.validSymbolsName) {
+      // patch conditions
+      // valid_symbols[${name}] -> true
+      // valid_symbols[*] -> false
+      return (
+        //commentBlock({name, key, validSymbolsName: state.validSymbolsName, validSymbolsKey: state.validSymbolsKey}) +
+        commentBlock(nodeText(fullNode, state), "evaluated") +
+        ((state.validSymbolsKey == key.trim()) ? "true" : "false")
+      )
+    }
     return (
-      todoNode(node, state) +
-      unwrapNode(node, state)
+      //commentBlock({name, key, validSymbolsName: state.validSymbolsName, validSymbolsKey: state.validSymbolsKey}) +
+      //todoNode(fullNode, state) +
+      unwrapNode(fullNode, state)
     )
   },
 }
@@ -867,11 +893,11 @@ export function getCode(tree, state) {
       code += `const inputNext = () => /** @type {number} */ input.next;\n`
       // TODO find conditional block or codepath
 
-      // TODO patch conditions
-      // valid_symbols[${name}] -> true
-      // valid_symbols[*] -> false
+      // patch conditions in SubscriptExpression
+      state.validSymbolsKey = name
       // then, remove dead code (tree shaking)
-      state.validSymbol = name
+      // if (false) { ... } -> (remove)
+      // if (true) expr -> expr
 
       let node = state.scanFuncNode
       node = firstChild(node)
