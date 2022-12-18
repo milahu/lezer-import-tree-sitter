@@ -18,6 +18,14 @@ export function commentLines(s, label = "") {
 }
 
 function commentBlock(s, label = "") {
+  if (typeof s != "string") {
+    s = JSON.stringify(s, null, 2) // pretty print
+  }
+  const isMultiLine = s.includes("\n")
+  if (isMultiLine) {
+    // extra whitespace will be removed by prettier
+    s = "\n* " + s.replace(/\n/g, "\n* ") + "\n"
+  }
   if (label) {
     return `/* @${label} ${s.replace(/\*\//g, "*\\/")} */`
   }
