@@ -18,6 +18,9 @@ export function commentLines(s, label = "") {
 }
 
 function commentBlock(s, label = "") {
+  if (label) {
+    return `/* @${label} ${s.replace(/\*\//g, "*\\/")} */`
+  }
   return `/* ${s.replace(/\*\//g, "*\\/")} */`
 }
 
@@ -620,7 +623,7 @@ export function formatNode(node, state) {
     //throw new Error("not implemented: node.type.name = " + node.type.name)
   }
   return (
-    (debug ? ("\n" + commentLines(nodeText(node, state).split("\n")[0], `source(${node.type.name})`)) : "") +
+    (debug ? (commentBlock(nodeText(node, state).split("\n")[0], `source(${node.type.name})`)) : "") +
     transpileOfNodeType[node.type.name](node, state)
   )
 }
@@ -854,6 +857,7 @@ export function getCode(tree, state) {
       // valid_symbols[${name}] -> true
       // valid_symbols[*] -> false
       // then, remove dead code (tree shaking)
+      state.validSymbol = name
 
       let node = state.scanFuncNode
       node = firstChild(node)
