@@ -798,7 +798,7 @@ export function getCode(tree, state) {
     const name = state.tokenTypeNames[0]
     // jsdoc type. not needed
     //result += `export const ${getTokenName(name)} = new ExternalTokenizer(/** @type {ETF} */ (input) => {\n`
-    code += `export const ${getTokenName(name, state)} = new ExternalTokenizer((input) => {\n`
+    code += `export const ${getTokenName(name, state)} = new ExternalTokenizer((input, stack) => {\n`
     code += `/// workaround for https://github.com/microsoft/TypeScript/issues/9998\n`
     code += `const inputNext = () => /** @type {number} */ input.next;\n`
     // TODO transpile the scan function
@@ -829,14 +829,19 @@ export function getCode(tree, state) {
     }
     // this causes double curly braces: { { ... } }
     //result += node.type.format(node, state)
-
-    code += `})\n`
+    code += `},\n` // function end
+    code += `{\n` // options start
+    code += `  //contextual: true,\n`
+    code += `  //fallback: true,\n`
+    code += `  //extend: true,\n`
+    code += `}\n` // options end
+    code += `)\n` // ExternalTokenizer end
   }
   else {
     // multiple entry points
     for (const name of state.tokenTypeNames) {
       //result += `export const ${getTokenName(name)} = new ExternalTokenizer(/** @type {ETF} */ (input) => {\n`
-      code += `export const ${getTokenName(name, state)} = new ExternalTokenizer((input) => {\n`
+      code += `export const ${getTokenName(name, state)} = new ExternalTokenizer((input, stack) => {\n`
       code += `/// workaround for https://github.com/microsoft/TypeScript/issues/9998\n`
       code += `const inputNext = () => /** @type {number} */ input.next;\n`
       // TODO find conditional block or codepath
@@ -873,7 +878,13 @@ export function getCode(tree, state) {
       }
       // this causes double curly braces: { { ... } }
       //result += node.type.format(node, state)
-      code += `})\n`
+      code += `},\n` // function end
+      code += `{\n` // options start
+      code += `  //contextual: true,\n`
+      code += `  //fallback: true,\n`
+      code += `  //extend: true,\n`
+      code += `}\n` // options end
+      code += `)\n` // ExternalTokenizer end
     }
   }
   code = getFileHeader(state) + code
