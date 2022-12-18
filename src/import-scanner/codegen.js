@@ -2,6 +2,7 @@ import {ESLint} from "eslint"
 import MagicString from "magic-string"
 import lineColumn from 'line-column'
 import {format as prettierFormat} from "prettier"
+import { addSlashes, removeSlashes } from 'slashes'
 
 // TODO? use code generator from https://github.com/yellicode/typescript-extension
 
