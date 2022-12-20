@@ -1119,12 +1119,15 @@ function getScanFunctions(state) {
     }
     // this causes double curly braces: { { ... } }
     //result += node.type.format(node, state)
+    code += `}\n` // function end
+    /*
     code += `},\n` // function end
     code += `{\n` // options start
     code += `  //contextual: true,\n`
     code += `  //fallback: true,\n`
     code += `  //extend: true,\n`
     code += `}\n` // options end
+    */
     code += `)\n` // ExternalTokenizer end
   }
   else {
@@ -1172,12 +1175,15 @@ function getScanFunctions(state) {
       }
       // this causes double curly braces: { { ... } }
       //result += node.type.format(node, state)
+      code += `}\n` // function end
+      /*
       code += `},\n` // function end
       code += `{\n` // options start
       code += `  //contextual: true,\n`
       code += `  //fallback: true,\n`
       code += `  //extend: true,\n`
       code += `}\n` // options end
+      */
       code += `)\n` // ExternalTokenizer end
     }
   }
