@@ -215,7 +215,10 @@ const transpileOfNodeType = {
         `input.acceptToken(TODO_TOKEN_NAME)`
       )
     }
-    return unwrapNode(fullNode, state)
+    return (
+      //todoNode(fullNode, state) +
+      unwrapNode(fullNode, state)
+    )
     //return humanFormatNode(fullNode, state, "/// @todo CallExpression")
 
     /*
@@ -267,11 +270,22 @@ const transpileOfNodeType = {
       const rawName = nodeText(rightNode, state)
       //console.error("AssignmentExpression: rawName", rawName)
       const tokenName = getTokenName(rawName, state)
-      return (
-        "\n" +
-        //commentLines("TODO arguments?\n" + nodeText(fullNode, state)) +
-        `input.acceptToken(${state.tokenNamePrefix}${tokenName})`
-      )
+      if (tokenName != rawName) {
+        // global constant -> prefix
+        return (
+          "\n" +
+          //commentLines("TODO arguments?\n" + nodeText(fullNode, state)) +
+          `input.acceptToken(${state.tokenNamePrefix}${tokenName})`
+        )
+      }
+      else {
+        // local variable -> no prefix
+        return (
+          "\n" +
+          //commentLines("TODO arguments?\n" + nodeText(fullNode, state)) +
+          `input.acceptToken(${tokenName})`
+        )
+      }
     }
     if (state.convertStringToArrayNames.has(name)) {
       // convert string to array
@@ -528,7 +542,7 @@ const transpileOfNodeType = {
   CaseStatement(node, state) {
     //return todoNode(node, state)
     let result = ""
-    result += todoNode(node, state)
+    //result += todoNode(node, state)
     /*
       example 1:
       CaseStatement: "case '\\0':"
@@ -572,10 +586,12 @@ const transpileOfNodeType = {
     */
     const fullNode = node
     node = firstChild(node)
-    const name = node.type.format(node, state)
+    //const name = node.type.format(node, state)
+    const name = nodeText(node, state)
     node = nextSibling(node) // "["
     node = nextSibling(node)
-    const key = node.type.format(node, state)
+    //const key = node.type.format(node, state) // no. Identifier would translate VARIABLE_NAME to Tokens.VariableName etc
+    const key = nodeText(node, state)
     // must trim name and key, because copyNodeSpace adds whitespace
     if (name.trim() == state.validSymbolsName) {
       // patch conditions
@@ -584,6 +600,7 @@ const transpileOfNodeType = {
       return (
         //commentBlock({name, key, validSymbolsName: state.validSymbolsName, validSymbolsKey: state.validSymbolsKey}) +
         commentBlock(nodeText(fullNode, state), "evaluated") +
+        //commentBlock({name, key}) +
         ((state.validSymbolsKey == key.trim()) ? "true" : "false")
       )
     }
@@ -740,6 +757,26 @@ const transpileOfNodeType = {
     const expr = node.type.format(node, state)
     return `/** @type {${tsType || type}} */ ${expr}`
   },
+  Identifier(node, state) {
+    const name = nodeText(node, state)
+    const namesMap = {
+      lexer: "input",
+      // TODO more?
+    }
+    if (name in namesMap) {
+      return namesMap[name]
+    }
+    const newName = getTokenName(name, state)
+    if (newName != name) {
+      return (
+        // FIXME input.acceptToken(Tokens.end_type); should be input.acceptToken(end_type);
+        // -> CallExpression
+        //commentBlock({name, newName}) +
+        state.tokenNamePrefix + newName
+      )
+    }
+    return name
+  },
 }
 
 function unwrapNode(node, state) {
@@ -821,7 +858,7 @@ transpileOfNodeType.True = copyNodeSpace
 transpileOfNodeType.False = copyNodeSpace
 transpileOfNodeType.Null = copyNodeSpace // TODO verify
 transpileOfNodeType.Number = copyNodeSpace
-transpileOfNodeType.Identifier = copyNodeSpace
+//transpileOfNodeType.Identifier = copyNodeSpace
 transpileOfNodeType.BreakStatement = copyNodeSpace
 
 transpileOfNodeType.while = copyNodeSpace
@@ -1042,8 +1079,10 @@ function getScanFunctions(state) {
     // jsdoc type. not needed
     //result += `export const ${getTokenName(name)} = new ExternalTokenizer(/** @type {ETF} */ (input) => {\n`
     code += `export const ${getTokenName(name, state)} = new ExternalTokenizer((input, stack) => {\n`
-    code += `/// workaround for https://github.com/microsoft/TypeScript/issues/9998\n`
-    code += `const inputNext = () => /** @type {number} */ input.next;\n`
+    if (state.inputNextWorkaround) {
+      code += `/// workaround for https://github.com/microsoft/TypeScript/issues/9998\n`
+      code += `const inputNext = () => /** @type {number} */ input.next;\n`
+    }
     // TODO transpile the scan function
     //result += humanFormatNode(scanFuncNode, state, "/// @fn scan")
 
@@ -1085,8 +1124,8 @@ function getScanFunctions(state) {
     for (const name of state.tokenTypeNames) {
       //result += `export const ${getTokenName(name)} = new ExternalTokenizer(/** @type {ETF} */ (input) => {\n`
       code += `export const ${getTokenName(name, state)} = new ExternalTokenizer((input, stack) => {\n`
-      code += `/// workaround for https://github.com/microsoft/TypeScript/issues/9998\n`
       if (state.inputNextWorkaround) {
+        code += `/// workaround for https://github.com/microsoft/TypeScript/issues/9998\n`
         code += `const inputNext = () => /** @type {number} */ input.next;\n`
       }
       // TODO find conditional block or codepath

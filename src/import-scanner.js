@@ -44,16 +44,17 @@ const terserConfig = {
     // https://github.com/terser/terser#compress-options
     defaults: false, // Pass false to disable most default enabled compress transforms.
     /**/
+    // FIXME this is too greedy. removes function calls to 
     evaluate: true, // attempt to evaluate constant expressions
     dead_code: true, // remove dead code (unreachable code)
     side_effects: true, // Remove expressions which have no side effects and whose results aren't used
     conditionals: true, // partial eval of conditions
-    //booleans: true, // false -> 0, true -> 1. partial eval of conditions
+    //booleans: true, // false -> 0, true -> 1
     comparisons: true, // ?
     switches: true, // de-duplicate and remove unreachable switch branches
     passes: 10, // maximum number of times to run compress
     /*
-    booleans_as_integers: false, // false -> 0, true -> 1. no effect with "booleans: true"
+    booleans_as_integers: false, // false -> 0, true -> 1
     toplevel: true, // drop unreferenced functions ("funcs") and/or variables ("vars") in the top level scope (false by default, true to drop both unreferenced functions and variables)
     unused: true, // drop unreferenced functions and variables
     top_retain: ["f1", "f2"], // prevent specific toplevel functions and variables from unused removal (can be array, comma-separated, RegExp or function. Implies toplevel)
@@ -190,7 +191,7 @@ analyze(tree, state)
 // codegen
 //let code = tree.topNode.type.format(tree.topNode, state) // too generic
 let code = getCode(tree, state)
-code = await minifyCode(code, terserConfig)
+code = await minifyCode(code, terserConfig) // remove dead code
 code = await lintCode(code, eslintConfig)
 code = formatCode(code, prettierConfig)
 
