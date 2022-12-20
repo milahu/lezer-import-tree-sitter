@@ -1085,7 +1085,8 @@ function getScanFunctions(state) {
     const name = state.tokenTypeNames[0]
     // jsdoc type. not needed
     //result += `export const ${getTokenName(name)} = new ExternalTokenizer(/** @type {ETF} */ (input) => {\n`
-    code += `export const ${getTokenName(name, state)} = new ExternalTokenizer((input, stack) => {\n`
+    //code += `export const ${getTokenName(name, state)} = new ExternalTokenizer((input, stack) => {\n`
+    code += `export const ${getTokenName(name, state)} = new ExternalTokenizer((input) => {\n`
     if (state.inputNextWorkaround) {
       code += `/// workaround for https://github.com/microsoft/TypeScript/issues/9998\n`
       code += `const inputNext = () => /** @type {number} */ input.next;\n`
@@ -1130,7 +1131,8 @@ function getScanFunctions(state) {
     // multiple entry points
     for (const name of state.tokenTypeNames) {
       //result += `export const ${getTokenName(name)} = new ExternalTokenizer(/** @type {ETF} */ (input) => {\n`
-      code += `export const ${getTokenName(name, state)} = new ExternalTokenizer((input, stack) => {\n`
+      //code += `export const ${getTokenName(name, state)} = new ExternalTokenizer((input, stack) => {\n`
+      code += `export const ${getTokenName(name, state)} = new ExternalTokenizer((input) => {\n`
       if (state.inputNextWorkaround) {
         code += `/// workaround for https://github.com/microsoft/TypeScript/issues/9998\n`
         code += `const inputNext = () => /** @type {number} */ input.next;\n`
