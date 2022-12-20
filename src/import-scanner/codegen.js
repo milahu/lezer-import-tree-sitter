@@ -69,9 +69,11 @@ const transpileOfNodeType = {
     const fullNode = node
     const text = nodeText(node, state)
     if (text == "lexer->lookahead") {
-      //return "input.next"
-      // workaround for https://github.com/microsoft/TypeScript/issues/9998
-      return "inputNext()"
+      if (state.inputNextWorkaround) {
+        // workaround for https://github.com/microsoft/TypeScript/issues/9998
+        return "inputNext()"
+      }
+      return "input.next"
     }
     node = firstChild(node) // object
     const name = nodeText(node, state)
@@ -890,7 +892,9 @@ export function getCode(tree, state) {
       //result += `export const ${getTokenName(name)} = new ExternalTokenizer(/** @type {ETF} */ (input) => {\n`
       code += `export const ${getTokenName(name, state)} = new ExternalTokenizer((input, stack) => {\n`
       code += `/// workaround for https://github.com/microsoft/TypeScript/issues/9998\n`
-      code += `const inputNext = () => /** @type {number} */ input.next;\n`
+      if (state.inputNextWorkaround) {
+        code += `const inputNext = () => /** @type {number} */ input.next;\n`
+      }
       // TODO find conditional block or codepath
 
       // patch conditions in SubscriptExpression

@@ -174,6 +174,7 @@ const state = {
   asciiNames: getAsciiNames(),
   tokensObjectName: "Tokens",
   tokenNamePrefix: "",
+  inputNextWorkaround: false,
   // analyze ...
   usedAsciiCodes: new Set(),
   convertStringToArrayNames: new Set(),
