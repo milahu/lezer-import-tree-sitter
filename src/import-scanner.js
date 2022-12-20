@@ -32,9 +32,8 @@ import {readFileSync} from "fs"
 import {parser as lezerCpp} from "@lezer/cpp"
 import {getAsciiNames} from "./import-scanner/ascii-constants.js"
 import { analyze } from "./import-scanner/analyze.js"
-import { getCode, lintCode, formatCode, formatNode } from "./import-scanner/codegen.js"
+import { getCode, minifyCode, lintCode, formatCode, formatNode } from "./import-scanner/codegen.js"
 import { printNode, exitNode } from './import-scanner/lezer-tree-format.js'
-import { minify as terserMinify } from 'terser'
 
 
 
@@ -175,6 +174,7 @@ const state = {
   tokensObjectName: "Tokens",
   tokenNamePrefix: "",
   inputNextWorkaround: false,
+  ignoreScannerMethods: new Set(["serialize", "deserialize"]),
   // analyze ...
   usedAsciiCodes: new Set(),
   convertStringToArrayNames: new Set(),
@@ -190,8 +190,7 @@ analyze(tree, state)
 // codegen
 //let code = tree.topNode.type.format(tree.topNode, state) // too generic
 let code = getCode(tree, state)
-const terserResult = await terserMinify(code, terserConfig)
-code = terserResult.code
+code = await minifyCode(code, terserConfig)
 code = await lintCode(code, eslintConfig)
 code = formatCode(code, prettierConfig)
 

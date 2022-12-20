@@ -3,6 +3,7 @@ import MagicString from "magic-string"
 import lineColumn from 'line-column'
 import {format as prettierFormat} from "prettier"
 import { addSlashes, removeSlashes } from 'slashes'
+import { minify as terserMinify } from 'terser'
 
 // TODO? use code generator from https://github.com/yellicode/typescript-extension
 
@@ -39,10 +40,14 @@ export function getTokenName(name, state) {
   // but the names *can* be different.
   // but the names *must* have the same order in both files.
   //console.error("getTokenName: name", JSON.stringify(name))
-  name = state.externalOfTokenType[name]
+  const newName = state.externalOfTokenType[name]
+  if (!newName) {
+    // example: name = "end_type" -> local variable in function scan_heredoc_content
+    return name
+  }
   // edge case: name = "_simple_heredoc_body" -> filter(Boolean)
   // convert to PascalCase
-  return name.split("_").filter(Boolean).map(part => {
+  return newName.split("_").filter(Boolean).map(part => {
     //console.error("getTokenName: name part", JSON.stringify(part))
     return part[0].toUpperCase() + part.slice(1).toLowerCase()
   }).join("")
@@ -126,6 +131,14 @@ const transpileOfNodeType = {
           if (keys[0] == "empty") {
             // someString.empty() -> (someArray.length == 0)
             return `(${name}.length == 0)`
+          }
+          if (keys[0] == "clear") {
+            // someString.clear() -> (someArray = [])
+            return `${name} = []`
+          }
+          if (keys[0] == "length") {
+            // someString.length() -> someArray.length
+            return `${name}.length`
           }
         }
         // TODO more
@@ -251,7 +264,9 @@ const transpileOfNodeType = {
     const rightNode = node ? node : middleOrRightNode
     if (name == "lexer->result_symbol") {
       //return `input.advance(${formatNode(node, state)}) // TODO arguments\n`
-      const tokenName = getTokenName(nodeText(rightNode, state), state)
+      const rawName = nodeText(rightNode, state)
+      //console.error("AssignmentExpression: rawName", rawName)
+      const tokenName = getTokenName(rawName, state)
       return (
         "\n" +
         //commentLines("TODO arguments?\n" + nodeText(fullNode, state)) +
@@ -513,10 +528,30 @@ const transpileOfNodeType = {
   CaseStatement(node, state) {
     //return todoNode(node, state)
     let result = ""
-    node = firstChild(node) // "case"
-    node = nextSibling(node) // value
-    const value = node.type.format(node, state)
-    result += `case ${value}:\n`
+    result += todoNode(node, state)
+    /*
+      example 1:
+      CaseStatement: "case '\\0':"
+        case: "case"
+        CharLiteral: "'\\0'"
+          EscapeSequence: "\\0"
+        CompoundStatement: "{"
+
+      example 2:
+      CaseStatement: "default: {"
+        default: "default"
+        CompoundStatement: "{"
+    */
+    node = firstChild(node) // "case" or "default"
+    const isDefault = nodeText(node, state) == "default"
+    if (isDefault) {
+      result += `default:\n`
+    }
+    else {
+      node = nextSibling(node) // value
+      const value = node.type.format(node, state)
+      result += `case ${value}:\n`
+    }
     // statements ...
     node = nextSibling(node)
     while (node) {
@@ -557,6 +592,153 @@ const transpileOfNodeType = {
       //todoNode(fullNode, state) +
       unwrapNode(fullNode, state)
     )
+  },
+  FunctionDefinition(node, state) {
+    /*
+      example:
+      FunctionDefinition: "void skip(TSLexer *lexer) {"
+        PrimitiveType: "void"
+        FunctionDeclarator: "skip(TSLexer *lexer)"
+          FieldIdentifier: "skip"
+          ParameterList: "(TSLexer *lexer)"
+            (: "("
+            ParameterDeclaration: "TSLexer *lexer"
+              TypeIdentifier: "TSLexer"
+              PointerDeclarator: "*lexer"
+                Identifier: "lexer"
+            ): ")"
+        CompoundStatement: "{"
+          {: "{"
+          ExpressionStatement: "lexer->advance(lexer, true);"
+    */
+    let result = ""
+    node = firstChild(node) // return type
+    // TODO translate cppType to tsType
+    result += `/** @return {${node.type.format(node, state)}} */\n`
+    node = nextSibling(node) // FunctionDeclarator
+    const functionDeclaratorNode = node
+    node = firstChild(node) // FieldIdentifier (function is class method)
+    const name = nodeText(node, state)
+    result += `function ${name}`
+    node = nextSibling(node) // ParameterList
+    result += node.type.format(node, state)
+    node = nextSibling(functionDeclaratorNode) // CompoundStatement
+    result += node.type.format(node, state)
+    return result
+  },
+  ParameterDeclaration(node, state) {
+    /*
+      example:
+      ParameterDeclaration: "TSLexer *lexer"
+        TypeIdentifier: "TSLexer"
+        PointerDeclarator: "*lexer"
+          Identifier: "lexer"
+    */
+    node = firstChild(node) // TypeIdentifier
+    const type = nodeText(node, state)
+    if (type == "TSLexer") {
+      return "/** @type {InputStream} */ input"
+    }
+    // similar to CastExpression
+    /*
+      example:
+      ParameterDeclaration: "TokenType middle_type"
+        TypeIdentifier: "TokenType"
+        Identifier: "middle_type"
+    */
+    node = nextSibling(node) // Identifier or PointerDeclarator
+    let isPointer = false
+    if (node.type.name == "PointerDeclarator") {
+      node = firstChild(node)
+      isPointer = true
+    }
+    const name = nodeText(node, state)
+    // TODO refactor
+    const typesMap = {
+      bool: "boolean",
+      int: "number",
+      int32_t: "number",
+      float: "number",
+    }
+    const tsType = typesMap[type]
+    return (
+      (isPointer ? "/* @todo pointer */" : "") +
+      `/** @type {${tsType || type}} */ ${name}`
+    )
+  },
+  _ParameterList(node, state) {
+    /*
+      example:
+      ParameterList: "(TSLexer *lexer)"
+        (: "("
+        ParameterDeclaration: "TSLexer *lexer"
+          TypeIdentifier: "TSLexer"
+          PointerDeclarator: "*lexer"
+            Identifier: "lexer"
+        ): ")"
+    */
+    let result = ""
+    node = firstChild(node) // "("
+    // TODO translate cppType to tsType
+    result += `/** @return {${node.type.format(node, state)}} */\n`
+    node = nextSibling(node) // FunctionDeclarator
+    const functionDeclaratorNode = node
+    node = firstChild(node) // FieldIdentifier (function is class method)
+    const name = nodeText(node, state)
+    result += `function ${name}`
+    node = nextSibling(node) // ParameterList
+    result += node.type.format(node, state)
+    node = nextSibling(functionDeclaratorNode) // CompoundStatement
+    result += node.type.format(node, state)
+    return result
+  },
+  PrimitiveType(node, state) {
+    // TODO refactor
+    const typesMap = {
+      bool: "boolean",
+      int: "number",
+      int32_t: "number",
+      float: "number",
+    }
+    const type = nodeText(node, state)
+    if (type in typesMap) {
+      return typesMap[type]
+    }
+    else {
+      return todoNode(node, state)
+    }
+  },
+  CastExpression(node, state) {
+    /*
+      example:
+      CastExpression: "(int32_t)heredoc_delimiter[i++]"
+        (: "("
+        TypeDescriptor: "int32_t"
+          PrimitiveType: "int32_t"
+        ): ")"
+        SubscriptExpression: "heredoc_delimiter[i++]"
+          Identifier: "heredoc_delimiter"
+          [: "["
+          UpdateExpression: "i++"
+            Identifier: "i"
+            UpdateOp: "++"
+          ]: "]"
+    */
+    node = firstChild(node) // "("
+    node = nextSibling(node) // TypeDescriptor
+    const type = node.type.format(node, state)
+    // TODO refactor
+    const typesMap = {
+      bool: "boolean",
+      int: "number",
+      int32_t: "number",
+      float: "number",
+    }
+    const tsType = typesMap[type]
+    node = nextSibling(node) // ")"
+    node = nextSibling(node) // expr
+    const expr = node.type.format(node, state)
+    return `/** @type {${tsType || type}} */ ${expr}`
   },
 }
 
@@ -610,6 +792,7 @@ transpileOfNodeType.CompoundStatement = unwrapNode
 //transpileOfNodeType.ReturnStatement = unwrapNode
 transpileOfNodeType.SwitchStatement = unwrapNode
 //transpileOfNodeType.CaseStatement = unwrapNode // no. colon is missing
+transpileOfNodeType.ParameterList = unwrapNode
 
 transpileOfNodeType.WhileStatement = unwrapNode
 //transpileOfNodeType.ForStatement = unwrapNode // no. semicolons are missing
@@ -620,6 +803,7 @@ transpileOfNodeType.BinaryExpression = unwrapNode
 transpileOfNodeType.UnaryExpression = unwrapNode
 transpileOfNodeType.ArgumentList = unwrapNode
 transpileOfNodeType.ParenthesizedExpression = unwrapNode
+transpileOfNodeType.TypeDescriptor = unwrapNode // TODO?
 
 transpileOfNodeType[","] = copyNode
 transpileOfNodeType["("] = copyNode
@@ -842,6 +1026,16 @@ function getFileHeader(state) {
 
 export function getCode(tree, state) {
   let code = ""
+  code += getScanFunctions(state)
+  code += getOtherFunctions(state)
+  code = getFileHeader(state) + code
+  return code
+}
+
+
+
+function getScanFunctions(state) {
+  let code = ""
   if (state.tokenTypeNames.length == 1) {
     // trivial case: only one entry point
     const name = state.tokenTypeNames[0]
@@ -924,7 +1118,7 @@ export function getCode(tree, state) {
         }
       }
       else {
-        // if (cond) expr
+        // no curly braces: if (cond) expr
         //code += `/// @node ${node.type.name}\n`
         code += node.type.format(node, state)
       }
@@ -939,8 +1133,60 @@ export function getCode(tree, state) {
       code += `)\n` // ExternalTokenizer end
     }
   }
-  code = getFileHeader(state) + code
   return code
+}
+
+
+
+function getOtherFunctions(state) {
+  let code = ""
+  // transpile other functions of "struct Scanner"
+  let node = state.scannerStructNode
+  //code += todoNode(node, state)
+  /*
+  example:
+  StructSpecifier: "struct Scanner {"
+    struct: "struct"
+    TypeIdentifier: "Scanner"
+    FieldDeclarationList: "{"
+      {: "{"
+      FunctionDefinition: "void skip(TSLexer *lexer) {"
+  */
+  node = firstChild(node) // struct: "struct"
+  node = nextSibling(node) // TypeIdentifier
+  node = nextSibling(node) // FieldDeclarationList
+  node = firstChild(node) // "{"
+  node = nextSibling(node)
+  while (node) {
+    if (node.type.name == "FunctionDefinition") {
+      const funcNode = node
+      node = firstChild(node) // return type
+      node = nextSibling(node) // FunctionDeclarator: "serialize(char *buffer)"
+      node = firstChild(node)
+      const name = nodeText(node, state)
+      if (
+        state.ignoreScannerMethods.has(name) == false &&
+        name != "scan"
+      ) {
+        code += funcNode.type.format(funcNode, state)
+      }
+      node = funcNode
+    }
+    node = nextSibling(node)
+  }
+  return code
+}
+
+
+
+export async function minifyCode(code, terserConfig) {
+  try {
+    const terserResult = await terserMinify(code, terserConfig)
+    return terserResult.code
+  }
+  catch (error) {
+    return code + "\n" + commentBlock(error)
+  }
 }
 
 
