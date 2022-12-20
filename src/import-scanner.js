@@ -183,6 +183,9 @@ const state = {
   structFields: {},
 }
 
+//state.asciiNames["-1"] = "eof" // lezer-parser
+state.asciiNames["-1"] = "end" // lezer-parser
+
 state.tokenNamePrefix = state.tokensObjectName + "."
 
 // static analysis

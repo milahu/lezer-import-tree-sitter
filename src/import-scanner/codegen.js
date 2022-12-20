@@ -338,9 +338,16 @@ const transpileOfNodeType = {
     */
     const char = removeSlashes(text.slice(1, -1))
     // eval char to number
-    const code = char.charCodeAt(0)
-    const name = state.asciiNames[code]
+    let code = char.charCodeAt(0)
+    if (code == 0) {
+      // end of file
+      // tree-sitter: lexer->lookahead == 0 // FIXME IfExpression
+      // tree-sitter: switch (lexer->lookahead) { case '\0': // CaseExpression
+      // lezer-parser: input.next == -1
+      code = -1
+    }
     state.usedAsciiCodes.add(code)
+    const name = state.asciiNames[code]
     return name
   },
   ReturnStatement(node, state) {
