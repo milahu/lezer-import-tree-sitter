@@ -50,6 +50,8 @@ const eslintConfig = {
   },
   "env": {
     "es2022": true,
+    "browser": true,
+    "node": true,
   },
   "plugins": [
     //"@typescript-eslint", // slow
