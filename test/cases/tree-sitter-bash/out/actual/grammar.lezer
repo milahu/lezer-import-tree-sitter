@@ -1,0 +1,291 @@
+@top Program {
+  statements |
+  ""
+}
+
+statements /* precedence: 1 */ {
+  (statement ("\n" HeredocBody)? terminator)* statement ("\n" HeredocBody)? terminator?
+}
+
+statements2 {
+  (statement ("\n" HeredocBody)? terminator)+
+}
+
+terminatedStatement {
+  statement terminator
+}
+
+statement {
+  RedirectedStatement |
+  VariableAssignment |
+  Command |
+  DeclarationCommand |
+  UnsetCommand |
+  TestCommand |
+  NegatedCommand |
+  ForStatement |
+  CStyleForStatement |
+  WhileStatement |
+  IfStatement |
+  CaseStatement |
+  Pipeline |
+  List |
+  Subshell |
+  CompoundStatement |
+  FunctionDefinition
+}
+
+RedirectedStatement /* precedence: -1 */ {
+  statement (FileRedirect | HeredocRedirect | HerestringRedirect)+
+}
+
+ForStatement {
+  (kw<"for"> | kw<"select">) simpleVariableName (kw<"in"> literal+)? terminator DoGroup
+}
+
+CStyleForStatement {
+  kw<"for"> "((" expression? terminator expression? terminator expression? "))" ";"? (DoGroup | CompoundStatement)
+}
+
+WhileStatement {
+  (kw<"while"> | kw<"until">) terminatedStatement DoGroup
+}
+
+DoGroup {
+  kw<"do"> statements2? kw<"done">
+}
+
+IfStatement {
+  kw<"if"> terminatedStatement kw<"then"> statements2? ElifClause* ElseClause? kw<"fi">
+}
+
+ElifClause {
+  kw<"elif"> terminatedStatement kw<"then"> statements2?
+}
+
+ElseClause {
+  kw<"else"> statements2?
+}
+
+CaseStatement {
+  kw<"case"> literal terminator? kw<"in"> terminator (CaseItem* CaseItem { LastCaseItem })? kw<"esac">
+}
+
+CaseItem {
+  literal ("|" literal)* ")" statements? /* precedence: 1 */ (";;" | ";&" | ";;&")
+}
+
+LastCaseItem {
+  literal ("|" literal)* ")" statements? /* precedence: 1 */ (";;")?
+}
+
+FunctionDefinition {
+  (kw<"function"> Word ("(" ")")? | Word "(" ")") (CompoundStatement | Subshell | TestCommand)
+}
+
+CompoundStatement {
+  "{" statements2? "}"
+}
+
+Subshell {
+  "(" statements ")"
+}
+
+Pipeline /* precedence: left 1 */ {
+  statement ("|" | "|&") statement
+}
+
+List /* precedence: left -1 */ {
+  statement ("&&" | "||") statement
+}
+
+NegatedCommand {
+  kw<"!"> (Command | TestCommand | Subshell)
+}
+
+TestCommand {
+  ("[" expression "]" | "[[" expression "]]" | "((" expression "))")
+}
+
+DeclarationCommand /* precedence: left 0 */ {
+  (kw<"declare"> | kw<"typeset"> | kw<"export"> | kw<"readonly"> | kw<"local">) (literal | simpleVariableName | VariableAssignment)*
+}
+
+UnsetCommand /* precedence: left 0 */ {
+  (kw<"unset"> | kw<"unsetenv">) (literal | simpleVariableName)*
+}
+
+Command /* precedence: left 0 */ {
+  (VariableAssignment | FileRedirect)* CommandName (literal | (kw<"=~"> | kw<"==">) (literal | Regex))*
+}
+
+CommandName {
+  literal
+}
+
+VariableAssignment {
+  (VariableName | Subscript) (kw<"="> | kw<"+=">) (literal | Array | emptyValue)
+}
+
+Subscript {
+  VariableName "[" literal concat? "]" concat?
+}
+
+FileRedirect /* precedence: left 0 */ {
+  FileDescriptor? ("<" | ">" | ">>" | "&>" | "&>>" | "<&" | ">&" | ">|") literal
+}
+
+HeredocRedirect {
+  ("<<" | "<<-") HeredocStart
+}
+
+HeredocBody {
+  simpleHeredocBody |
+  heredocBodyBeginning (Expansion | SimpleExpansion | CommandSubstitution | heredocBodyMiddle)* heredocBodyEnd
+}
+
+HerestringRedirect {
+  "<<<" literal
+}
+
+expression {
+  literal |
+  UnaryExpression |
+  TernaryExpression |
+  BinaryExpression |
+  PostfixExpression |
+  ParenthesizedExpression
+}
+
+BinaryExpression /* precedence: left 0 */ {
+  expression (kw<"="> | kw<"=="> | kw<"=~"> | kw<"!="> | kw<"+"> | kw<"-"> | kw<"+="> | kw<"-="> | "<" | ">" | "<=" | ">=" | "||" | "&&" | TestOperator) expression |
+  expression (kw<"=="> | kw<"=~">) Regex
+}
+
+TernaryExpression /* precedence: left 0 */ {
+  expression kw<"?"> expression kw<":"> expression
+}
+
+UnaryExpression /* precedence: right 0 */ {
+  (kw<"!"> | TestOperator) expression
+}
+
+PostfixExpression {
+  expression (kw<"++"> | kw<"--">)
+}
+
+ParenthesizedExpression {
+  "(" expression ")"
+}
+
+literal {
+  Concatenation |
+  primaryExpression |
+  Word { /* precedence: -2 */ (specialCharacter+) }
+}
+
+primaryExpression {
+  Word |
+  String |
+  RawString |
+  TranslatedString |
+  AnsiCString |
+  Expansion |
+  SimpleExpansion |
+  CommandSubstitution |
+  ProcessSubstitution
+}
+
+Concatenation /* precedence: -1 */ {
+  (primaryExpression | specialCharacter) /* precedence: -1 */ (concat (primaryExpression | specialCharacter))+ (concat "$")?
+}
+
+String {
+  "\"" (("$"? stringContent | Expansion | SimpleExpansion | CommandSubstitution) concat?)* "$"? "\""
+}
+
+TranslatedString {
+  "$" String
+}
+
+Array {
+  "(" literal* ")"
+}
+
+SimpleExpansion {
+  "$" (simpleVariableName | specialVariableName | SpecialVariableName { kw<"!"> } | SpecialVariableName { "#" })
+}
+
+StringExpansion {
+  "$" String
+}
+
+Expansion {
+  "${" ("#" | kw<"!">)? (VariableName kw<"="> literal? | (Subscript | simpleVariableName | specialVariableName) (token_4 Regex?)? (literal | kw<":"> | kw<":?"> | kw<"="> | kw<":-"> | kw<"%"> | kw<"-"> | "#")*)? "}"
+}
+
+CommandSubstitution {
+  "$(" statements ")" |
+  "$(" FileRedirect ")" |
+  /* precedence: 1 */ ("`" statements "`")
+}
+
+ProcessSubstitution {
+  ("<(" | ">(") statements ")"
+}
+
+simpleVariableName {
+  VariableName { token_5 }
+}
+
+specialVariableName {
+  SpecialVariableName { kw<"*"> | kw<"@"> | kw<"?"> | kw<"-"> | "$" | kw<"0"> | kw<"_"> }
+}
+
+kw<term> { @specialize[@name={term}]<Word, term> }
+
+@skip { Comment | token_1 | token_2 | token_3 }
+
+@external tokens token from "./tokens" { HeredocStart, simpleHeredocBody, heredocBodyBeginning, heredocBodyMiddle, heredocBodyEnd, FileDescriptor, emptyValue, concat, VariableName, Regex }
+
+@tokens {
+  token_1 {
+    $[ \t\r\n]
+  }
+  token_2 {
+    "\\\\" "\\r"? "\\n"
+  }
+  token_3 {
+    "\\\\" (" " | "\\t" | "\\v" | "\\f")
+  }
+  specialCharacter /* precedence: -1 */ {
+    "{" | "}" | "[" | "]"
+  }
+  stringContent /* precedence: -1 */ {
+    (!["`$\\] | "\\\\" (![\n] | "\\r"? "\\n"))+
+  }
+  RawString {
+    "'" ![']* "'"
+  }
+  AnsiCString {
+    "\\$'" (!['] | "\\\\'")* "'"
+  }
+  token_4 /* precedence: 1 */ {
+    "/"
+  }
+  Comment /* precedence: -10 */ {
+    "#" ![\n]*
+  }
+  token_5 {
+    $[a-zA-Z0-9_]+
+  }
+  Word {
+    (![#'"<>{}\[\]()`$|&;\\ \t\n\r] | "\\" ![ \t\n\r]) (!['"<>{}\[\]()`$|&;\\ \t\n\r] | "\\" ![ \t\n\r])*
+  }
+  TestOperator /* precedence: 1 */ {
+    "-" $[a-zA-Z]+
+  }
+  terminator {
+    ";" | ";;" | "\n" | "&"
+  }
+}
