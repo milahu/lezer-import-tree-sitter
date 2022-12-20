@@ -992,6 +992,13 @@ function getFileHeader(state) {
     `/** @param {number} code */`,
     `const iswspace = (code) => spaceCodeSet.has(code);`,
     ``,
+    `/** @param {number} code */`,
+    `const iswdigit = (code) => (48 <= code && code <= 57);`,
+    ``,
+    `/** @param {number} code */`,
+    //`const iswalpha = (code) => ((65 <= code && code <= 90) || (97 <= code && code <= 122));`,
+    `const iswalpha = (code) => (65 <= code && code <= 122 && (code <= 90 || 97 <= code));`,
+    ``,
     // TODO restore. add only used charsugly
     ``,
     ...(
