@@ -37,6 +37,20 @@ import { printNode, exitNode } from './import-scanner/lezer-tree-format.js'
 
 
 
+// FIXME terser fails to remove some dead code
+/*
+example 1:
+    if (is_number && false) { // always false
+      input.acceptToken(Tokens.FileDescriptor);
+      return true;
+    }
+
+example 2:
+    if (
+      input.next == hash ||
+      (input.next == curlyR && false) // this line is always false
+    ) { ... }
+*/
 /** @type {import("terser").MinifyOptions} */
 const terserConfig = {
   module: true,
