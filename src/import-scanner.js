@@ -75,9 +75,9 @@ const terserConfig = {
   mangle: false,
   output: {
     wrap_iife: false,
+    // FIXME keep whitespace (newlines after comments)
     comments: true,
     indent_level: 2,
-    shorthand: false,
   },
   parse: {},
   rename: false,
