@@ -53,12 +53,12 @@ const terserConfig = {
     comparisons: true, // ?
     switches: true, // de-duplicate and remove unreachable switch branches
     passes: 10, // maximum number of times to run compress
+    inline: true, // inline calls to function with simple/return statement
     /*
     booleans_as_integers: false, // false -> 0, true -> 1
     toplevel: true, // drop unreferenced functions ("funcs") and/or variables ("vars") in the top level scope (false by default, true to drop both unreferenced functions and variables)
     unused: true, // drop unreferenced functions and variables
     top_retain: ["f1", "f2"], // prevent specific toplevel functions and variables from unused removal (can be array, comma-separated, RegExp or function. Implies toplevel)
-    inline: true, // inline calls to function with simple/return statement
     module: true, // Pass true when compressing an ES6 module
     sequences: true, // code blocks to expressions
     collapse_vars: true,
