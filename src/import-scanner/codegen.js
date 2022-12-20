@@ -140,6 +140,10 @@ const transpileOfNodeType = {
             // someString.length() -> someArray.length
             return `${name}.length`
           }
+          if (keys[0] == "size") {
+            // someString.size() -> someArray.length
+            return `${name}.length`
+          }
         }
         // TODO more
         printNode(fullNode, state); console.dir({keys}); process.exit()
