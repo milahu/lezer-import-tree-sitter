@@ -34,8 +34,54 @@ import {getAsciiNames} from "./import-scanner/ascii-constants.js"
 import { analyze } from "./import-scanner/analyze.js"
 import { getCode, lintCode, formatCode, formatNode } from "./import-scanner/codegen.js"
 import { printNode, exitNode } from './import-scanner/lezer-tree-format.js'
+import { minify as terserMinify } from 'terser'
 
 
+
+/** @type {import("terser").MinifyOptions} */
+const terserConfig = {
+  module: true,
+  compress: {
+    // https://github.com/terser/terser#compress-options
+    defaults: false, // Pass false to disable most default enabled compress transforms.
+    /**/
+    evaluate: true, // attempt to evaluate constant expressions
+    dead_code: true, // remove dead code (unreachable code)
+    side_effects: true, // Remove expressions which have no side effects and whose results aren't used
+    conditionals: true, // partial eval of conditions
+    //booleans: true, // false -> 0, true -> 1. partial eval of conditions
+    comparisons: true, // ?
+    switches: true, // de-duplicate and remove unreachable switch branches
+    passes: 10, // maximum number of times to run compress
+    /*
+    booleans_as_integers: false, // false -> 0, true -> 1. no effect with "booleans: true"
+    toplevel: true, // drop unreferenced functions ("funcs") and/or variables ("vars") in the top level scope (false by default, true to drop both unreferenced functions and variables)
+    unused: true, // drop unreferenced functions and variables
+    top_retain: ["f1", "f2"], // prevent specific toplevel functions and variables from unused removal (can be array, comma-separated, RegExp or function. Implies toplevel)
+    inline: true, // inline calls to function with simple/return statement
+    module: true, // Pass true when compressing an ES6 module
+    sequences: true, // code blocks to expressions
+    collapse_vars: true,
+    arrows: false,
+    arguments: false,
+    collapse_vars: false,
+    computed_props: false,
+    directives: false,
+    drop_console: false,
+    drop_debugger: false,
+    ecma: false,
+    */
+  },
+  mangle: false,
+  output: {
+    wrap_iife: false,
+    comments: true,
+    indent_level: 2,
+    shorthand: false,
+  },
+  parse: {},
+  rename: false,
+}
 
 const eslintConfig = {
   "extends": [
@@ -143,6 +189,8 @@ analyze(tree, state)
 // codegen
 //let code = tree.topNode.type.format(tree.topNode, state) // too generic
 let code = getCode(tree, state)
+const terserResult = await terserMinify(code, terserConfig)
+code = terserResult.code
 code = await lintCode(code, eslintConfig)
 code = formatCode(code, prettierConfig)
 
