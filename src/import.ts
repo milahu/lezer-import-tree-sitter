@@ -27,6 +27,14 @@ type TSDefinition = {
   supertypes?: string[]
 }
 
+type ContextOptions = {
+  /**
+  * when true, keep original rule names in the `@name` prop. \
+  * when string, store original rule names in a custom prop.
+  */
+  keepRuleNames?: boolean | string,
+}
+
 function prec(expr: TSExpr): number {
   switch (expr.type) {
     case "CHOICE": return isOption(expr) ? 10 : 1
@@ -72,8 +80,13 @@ class Context {
   wordRE: RegExp | null = null
   wordRule: string = ""
   wordRuleName: string  = ""
+  options: ContextOptions = {
+    keepRuleNames: false,
+  }
 
-  constructor(readonly def: TSDefinition) {}
+  constructor(readonly def: TSDefinition, options: ContextOptions = {}) {
+    this.options = { ...this.options, ...options }
+  }
   
   translateInner(expr: TSExpr, token: boolean, outerPrec: number): string {
     let inner = this.translateExpr(expr, token)
@@ -139,8 +152,15 @@ class Context {
     } else {
       let {comment, expr} = takePrec(content)
       let result = choices(expr).map(choice => this.translateExpr(choice, false))
-      this.rules[(top ? "@top " : "") + this.translateName(name)] =
-        `${comment}{\n  ${result.join(" |\n  ")}\n}`
+      let key = (top ? "@top " : "") + this.translateName(name)
+      if (this.options.keepRuleNames) {
+        if (typeof this.options.keepRuleNames == "string") {
+          key += `[${this.options.keepRuleNames}=${JSON.stringify(name)}]`
+        } else {
+          key += `[@name=${JSON.stringify(name)}]`
+        }
+      }
+      this.rules[key] = `${comment}{\n  ${result.join(" |\n  ")}\n}`
     }
   }
 
@@ -281,9 +301,9 @@ function toRegExp(expr: TSExpr): string {
   }
 }
 
-export function importGrammar(content: string) {
+export function importGrammar(content: string, options: any = {}) {
   let def = JSON.parse(content) as TSDefinition
-  let cx = new Context(def)
+  let cx = new Context(def, options)
   cx.build()
   return cx.grammar()
 } 
