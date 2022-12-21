@@ -1,0 +1,34 @@
+{
+  "name": "lezer-parser-bash",
+  "version": "0.0.1",
+  "description": "Lezer grammar for the Bash language",
+  "homepage": "https://github.com/milahu/lezer-parser-bash",
+  "main": "dist/index.cjs",
+  "author": "milahu",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "import": "./dist/index.js",
+    "require": "./dist/index.cjs"
+  },
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "devDependencies": {
+    "@lezer/common": "^1.0.2",
+    "@lezer/generator": "^1.1.3",
+    "@rollup/plugin-node-resolve": "^15.0.1",
+    "mocha": "^10.2.0",
+    "rollup": "^3.7.5"
+  },
+  "dependencies": {
+    "@lezer/lr": "^1.2.5"
+  },
+  "scripts": {
+    "prepare": "lezer-generator src/grammar.lezer -o src/parser && rollup -c",
+    "build": "lezer-generator src/grammar.lezer -o src/parser && rollup -c",
+    "build-debug": "lezer-generator src/grammar.lezer --names -o src/parser && rollup -c",
+    "test": "mocha --experimental-modules test/test-*.js",
+    "on-change": "npm run build && npm run test",
+    "watch": "git ls-files | entr npm run on-change"
+  }
+}
