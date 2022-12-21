@@ -2,11 +2,11 @@ Unused rule 'StringExpansion' (src/grammar.lezer 224:0)
 shift/reduce conflict between
   specialCharacter+ -> · specialCharacter
 and
-  Word-1 -> specialCharacter+
+  WordOfSpecialCharacters -> specialCharacter+
 With input:
   specialCharacter+ · specialCharacter …
-Shared origin: literal -> · Word-1
-  via Word-1 -> · specialCharacter+
+Shared origin: literal -> · WordOfSpecialCharacters
+  via WordOfSpecialCharacters -> · specialCharacter+
     via specialCharacter+ -> specialCharacter+ · specialCharacter+
       specialCharacter+ -> · specialCharacter
 
