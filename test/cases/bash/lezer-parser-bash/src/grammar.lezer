@@ -186,7 +186,7 @@ ParenthesizedExpression {
 literal {
   Concatenation |
   primaryExpression |
-  Word { /* precedence: -2 */ (specialCharacter+) }
+  WordOfSpecialCharacters { /* precedence: -2 */ (specialCharacter+) }
 }
 
 primaryExpression {
