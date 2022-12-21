@@ -13,15 +13,21 @@ do
 
 echo
 echo "test case: $dir"
-[ -d "$dir/out/actual/src" ] || mkdir -p "$dir/out/actual/src"
+name=$(basename "$dir")
 
-echo "importing $dir/src/grammar.json to $dir/out/actual/src/grammar.lezer"
-node "$import_js" "$dir/src/grammar.json" >"$dir/out/actual/src/grammar.lezer"
+d="$dir/lezer-parser-$name/src"
+[ -d "$d" ] || mkdir -p "$d"
 
-for scanner_src in "$dir"/src/scanner.[cC]*
+a="$dir/tree-sitter-$name/src/grammar.json"
+b="$dir/lezer-parser-$name/src/grammar.lezer"
+echo "importing $a to $b"
+node "$import_js" "$a" >"$b"
+
+for c in "$dir/tree-sitter-$name/src"/scanner.[cC]*
 do
-echo "importing $scanner_src to $dir/out/actual/src/scanner.js"
-node "$import_scanner_js" "$scanner_src" "$dir/src/grammar.json" >"$dir/out/actual/src/scanner.js"
+d="$dir/lezer-parser-$name/src/scanner.js"
+echo "importing $c to $d"
+node "$import_scanner_js" "$c" "$a" >"$d"
 done
 
 done
