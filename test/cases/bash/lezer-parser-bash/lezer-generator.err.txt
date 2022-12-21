@@ -1,4 +1,4 @@
-Unused rule 'StringExpansion' (src/grammar.lezer 219:0)
+Unused rule 'StringExpansion' (src/grammar.lezer 224:0)
 shift/reduce conflict between
   specialCharacter+ -> · specialCharacter
 and
@@ -98,17 +98,6 @@ Shared origin: statement -> · List
       via RedirectedStatement -> statement · (FileRedirect | HeredocRedirect | HerestringRedirect)+
         via (FileRedirect | HeredocRedirect | HerestringRedirect)+ -> · HerestringRedirect
           HerestringRedirect -> · "<<<" literal
-
-shift/reduce conflict between
-  BinaryExpression -> expression · "<" expression
-and
-  UnaryExpression -> TestOperator expression
-With input:
-  "[" TestOperator expression · "<" …
-Shared origin: expression -> · UnaryExpression
-  via UnaryExpression -> TestOperator · expression
-    via expression -> · BinaryExpression
-      BinaryExpression -> expression · "<" expression
 
 shift/reduce conflict between
   String -> · "\"" "\""
