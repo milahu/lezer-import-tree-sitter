@@ -1,0 +1,133 @@
+Unused rule 'StringExpansion' (src/grammar.lezer 219:0)
+shift/reduce conflict between
+  specialCharacter+ -> · specialCharacter
+and
+  Word-1 -> specialCharacter+
+With input:
+  specialCharacter+ · specialCharacter …
+Shared origin: literal -> · Word-1
+  via Word-1 -> · specialCharacter+
+    via specialCharacter+ -> specialCharacter+ · specialCharacter+
+      specialCharacter+ -> · specialCharacter
+
+reduce/reduce conflict between
+  (VariableAssignment | FileRedirect)+ -> VariableAssignment
+and
+  statement -> VariableAssignment
+With input:
+  VariableAssignment · FileDescriptor …
+Shared origin: (statement ("\n" HeredocBody)? terminator)+ -> · statement "\n" HeredocBody terminator
+  via statement -> · Command
+    via Command -> · (VariableAssignment | FileRedirect)+ CommandName (literal | (kw<"=~"> | kw<"==">) (literal | Regex))+
+      (VariableAssignment | FileRedirect)+ -> VariableAssignment ·
+
+shift/reduce conflict between
+  CommandSubstitution -> · "`" statements "`"
+and
+  Command -> CommandName
+With input:
+  "`" CommandName · "`" …
+Shared origin: primaryExpression -> · CommandSubstitution
+  via CommandSubstitution -> "`" · statements "`"
+    via statements -> · (statement ("\n" HeredocBody)? terminator)+ statement "\n" HeredocBody terminator
+      via (statement ("\n" HeredocBody)? terminator)+ -> · statement "\n" HeredocBody terminator
+        via statement -> · Command
+          Command -> CommandName ·
+
+shift/reduce conflict between
+  FileRedirect -> · FileDescriptor "<" literal
+and
+  RedirectedStatement -> statement (FileRedirect | HeredocRedirect | HerestringRedirect)+
+With input:
+  statement (FileRedirect | HeredocRedirect | HerestringRedirect)+ · FileDescriptor …
+Shared origin: statement -> · RedirectedStatement
+  via RedirectedStatement -> statement · (FileRedirect | HeredocRedirect | HerestringRedirect)+
+    via (FileRedirect | HeredocRedirect | HerestringRedirect)+ -> (FileRedirect | HeredocRedirect | HerestringRedirect)+ · (FileRedirect | HeredocRedirect | HerestringRedirect)+
+      via (FileRedirect | HeredocRedirect | HerestringRedirect)+ -> · FileRedirect
+        FileRedirect -> · FileDescriptor "<" literal
+
+shift/reduce conflict between
+  (concat (primaryExpression | specialCharacter))+ -> · concat primaryExpression
+and
+  literal -> primaryExpression
+With input:
+  VariableName "[" primaryExpression · concat …
+Shared origin: Subscript -> VariableName "[" · literal "]"
+  via literal -> · Concatenation
+    via Concatenation -> primaryExpression · (concat (primaryExpression | specialCharacter))+
+      (concat (primaryExpression | specialCharacter))+ -> · concat primaryExpression
+
+reduce/reduce conflict between
+  (statement ("\n" HeredocBody)? terminator)+ -> statement terminator
+and
+  statements -> statement terminator
+With input:
+  "`" statement terminator · "`" …
+Shared origin: statements -> · (statement ("\n" HeredocBody)? terminator)+ statement "\n" HeredocBody terminator
+  via (statement ("\n" HeredocBody)? terminator)+ -> · statement "\n" HeredocBody terminator
+    via statement -> · Command
+      via Command -> · CommandName (literal | (kw<"=~"> | kw<"==">) (literal | Regex))+
+        via CommandName -> · literal
+          via literal -> · primaryExpression
+            via primaryExpression -> · CommandSubstitution
+              via CommandSubstitution -> "`" · statements "`"
+                statements -> statement terminator ·
+
+shift/reduce conflict between
+  HeredocRedirect -> · "<<" HeredocStart
+and
+  Pipeline -> statement "|" statement
+With input:
+  statement "|" statement · "<<" …
+Shared origin: statement -> · Pipeline
+  via Pipeline -> statement "|" · statement
+    via statement -> · RedirectedStatement
+      via RedirectedStatement -> statement · (FileRedirect | HeredocRedirect | HerestringRedirect)+
+        via (FileRedirect | HeredocRedirect | HerestringRedirect)+ -> · HeredocRedirect
+          HeredocRedirect -> · "<<" HeredocStart
+
+shift/reduce conflict between
+  HerestringRedirect -> · "<<<" literal
+and
+  List -> statement "&&" statement
+With input:
+  statement "&&" statement · "<<<" …
+Shared origin: statement -> · List
+  via List -> statement "&&" · statement
+    via statement -> · RedirectedStatement
+      via RedirectedStatement -> statement · (FileRedirect | HeredocRedirect | HerestringRedirect)+
+        via (FileRedirect | HeredocRedirect | HerestringRedirect)+ -> · HerestringRedirect
+          HerestringRedirect -> · "<<<" literal
+
+shift/reduce conflict between
+  BinaryExpression -> expression · "<" expression
+and
+  UnaryExpression -> TestOperator expression
+With input:
+  "[" TestOperator expression · "<" …
+Shared origin: expression -> · UnaryExpression
+  via UnaryExpression -> TestOperator · expression
+    via expression -> · BinaryExpression
+      BinaryExpression -> expression · "<" expression
+
+shift/reduce conflict between
+  String -> · "\"" "\""
+and
+  Concatenation -> primaryExpression (concat (primaryExpression | specialCharacter))+ concat "$"
+With input:
+  … (concat (primaryExpression | specialCharacter))+ concat "$" · "\"" …
+Shared origin: literal -> · Concatenation
+  via Concatenation -> primaryExpression · (concat (primaryExpression | specialCharacter))+
+    via (concat (primaryExpression | specialCharacter))+ -> (concat (primaryExpression | specialCharacter))+ · (concat (primaryExpression | specialCharacter))+
+      via (concat (primaryExpression | specialCharacter))+ -> concat · primaryExpression
+        via primaryExpression -> · TranslatedString
+          via TranslatedString -> "$" · String
+            String -> · "\"" "\""
+
+shift/reduce conflict between
+  TernaryExpression -> expression · Word/"?" expression Word/":" expression
+and
+  TernaryExpression -> expression Word/"?" expression Word/":" expression
+With input:
+  "[" expression Word/"?" expression Word/":" expression · Word/"?" …
+Shared origin: expression -> · TernaryExpression
