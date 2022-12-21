@@ -72,7 +72,7 @@ function takePrec(expr: TSExpr) {
   return {expr, comment: comment ? `/* precedence: ${comment} */ ` : ""}
 }
 
-class Context {
+export class Context {
   rules: {[name: string]: string} = Object.create(null)
   tokens: {[name: string]: string} = Object.create(null)
   skip: string = ""
