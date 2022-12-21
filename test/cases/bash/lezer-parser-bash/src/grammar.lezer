@@ -3,6 +3,11 @@
   ""
 }
 
+@precedence {
+  PrecBinaryExpression @left,
+  PrecUnaryExpression @right
+}
+
 statements /* precedence: 1 */ {
   (statement ("\n" HeredocBody)? terminator)* statement ("\n" HeredocBody)? terminator?
 }
@@ -158,8 +163,8 @@ expression {
 }
 
 BinaryExpression /* precedence: left 0 */ {
-  expression (kw<"="> | kw<"=="> | kw<"=~"> | kw<"!="> | kw<"+"> | kw<"-"> | kw<"+="> | kw<"-="> | "<" | ">" | "<=" | ">=" | "||" | "&&" | TestOperator) expression |
-  expression (kw<"=="> | kw<"=~">) Regex
+  expression !PrecBinaryExpression (kw<"="> | kw<"=="> | kw<"=~"> | kw<"!="> | kw<"+"> | kw<"-"> | kw<"+="> | kw<"-="> | "<" | ">" | "<=" | ">=" | "||" | "&&" | TestOperator) expression |
+  expression !PrecBinaryExpression (kw<"=="> | kw<"=~">) Regex
 }
 
 TernaryExpression /* precedence: left 0 */ {
@@ -167,7 +172,7 @@ TernaryExpression /* precedence: left 0 */ {
 }
 
 UnaryExpression /* precedence: right 0 */ {
-  (kw<"!"> | TestOperator) expression
+  (kw<"!"> | TestOperator) !PrecUnaryExpression expression
 }
 
 PostfixExpression {
