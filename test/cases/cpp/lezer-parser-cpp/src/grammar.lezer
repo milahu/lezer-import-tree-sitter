@@ -1181,7 +1181,7 @@ kw<term> { @specialize[@name={term}]<Identifier, term> }
 
 @skip { token_1 | Comment }
 
-@external tokens token from "./tokens" { RawStringLiteral }
+@external tokens token from "./scanner.js" { RawStringLiteral }
 
 @tokens {
   token_1 {

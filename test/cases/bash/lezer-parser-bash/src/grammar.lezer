@@ -246,7 +246,7 @@ kw<term> { @specialize[@name={term}]<Word, term> }
 
 @skip { Comment | token_1 | token_2 | token_3 }
 
-@external tokens token from "./tokens" { HeredocStart, simpleHeredocBody, heredocBodyBeginning, heredocBodyMiddle, heredocBodyEnd, FileDescriptor, emptyValue, concat, VariableName, Regex }
+@external tokens token from "./scanner.js" { HeredocStart, simpleHeredocBody, heredocBodyBeginning, heredocBodyMiddle, heredocBodyEnd, FileDescriptor, emptyValue, concat, VariableName, Regex }
 
 @tokens {
   token_1 {
