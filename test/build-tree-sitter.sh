@@ -1,6 +1,7 @@
 #! /usr/bin/env bash
 
 set -e
+set -x
 
 # check dependencies
 tree-sitter --version
@@ -33,12 +34,18 @@ fi
 
 if ! [ -d node_modules ]
 then
+  echo installing node_modules ...
   pnpm install --ignore-scripts
+  echo installing node_modules done:
+  ls -A node_modules
   # TODO replace tree-sitter binary
   f=node_modules/tree-sitter-cli/tree-sitter
-  rm -v $f
+  rm -v $f || true
   ln -v -s $system_tree_sitter $f
 fi
+
+# generate src/parser.c and binding.gyp
+tree-sitter generate
 
 # generate build/
 node-gyp configure
@@ -50,9 +57,11 @@ then
 else
   (
     set -x
-    tree-sitter generate && node-gyp build
+    node-gyp build
   )
 fi
+
+stat "$f"
 
 popd
 
