@@ -1,7 +1,7 @@
 #! /usr/bin/env bash
 
 set -e
-set -x
+#set -x
 
 # check dependencies
 tree-sitter --version
@@ -27,7 +27,7 @@ pushd "$dir/tree-sitter-$name/"
 f=build/Release/tree_sitter_${name}_binding.node
 if [ -e $f ]
 then
-  echo "skipping build because bindings exist: $f"
+  echo "skipping build because bindings exist: $dir/tree-sitter-$name/$f"
   popd
   continue
 fi
@@ -60,6 +60,8 @@ else
     node-gyp build
   )
 fi
+
+echo "done bindings: $dir/tree-sitter-$name/$f"
 
 stat "$f"
 
