@@ -1,0 +1,4 @@
+[submodule "test/cases/make/tree-sitter-make"]
+	path = test/cases/make/tree-sitter-make
+	url = https://github.com/milahu/tree-sitter-make
+	branch = add-argument-parsing
