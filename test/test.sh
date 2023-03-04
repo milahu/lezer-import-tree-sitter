@@ -3,9 +3,8 @@
 # chdir to project root
 cd "$(dirname "$0")"/..
 
-# get absolute paths
-import_js="$(readlink -f dist/import-cli.js)"
-import_scanner_js="$(readlink -f src/import-scanner.js)"
+import_js=dist/import-cli.js
+import_scanner_js=src/import-scanner.js
 
 test_cases="$@"
 if [ -z "$test_cases" ]; then
@@ -26,12 +25,14 @@ d="$dir/lezer-parser-$name/src"
 a="$dir/tree-sitter-$name/src/grammar.json"
 b="$dir/lezer-parser-$name/src/grammar.lezer"
 echo "importing $a to $b"
+echo "node $import_js $a >$b"
 node "$import_js" "$a" >"$b"
 
 for c in "$dir/tree-sitter-$name/src"/scanner.[cC]*
 do
 d="$dir/lezer-parser-$name/src/scanner.js"
 echo "importing $c to $d"
+echo "node $import_scanner_js $c $a >$d"
 node "$import_scanner_js" "$c" "$a" >"$d"
 done
 
