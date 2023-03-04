@@ -1,0 +1,596 @@
+@top Makefile {
+  thing*
+}
+
+thing {
+  Comment |
+  Rule |
+  variableDefinition |
+  directive |
+  function token_3
+}
+
+Rule {
+  ordinaryRule |
+  staticPatternRule
+}
+
+ordinaryRule /* precedence: right 0 */ {
+  targets (":" | "&:" | "::") token_4? prerequisites? (Recipe | token_5)
+}
+
+staticPatternRule /* precedence: right 0 */ {
+  targets ":" token_6? targetPattern ":" token_7? prerequisitesPattern? (Recipe | token_8)
+}
+
+targets {
+  Targets { list1 }
+}
+
+targetPattern {
+  PatternList { list1 }
+}
+
+prerequisites {
+  normalPrerequisites |
+  normalPrerequisites? "|" orderOnlyPrerequisites
+}
+
+normalPrerequisites {
+  Prerequisites { list1 }
+}
+
+orderOnlyPrerequisites {
+  Prerequisites { list1 }
+}
+
+prerequisitesPattern {
+  PatternList { list1 }
+}
+
+Recipe /* precedence: right 0 */ {
+  attachedRecipeLine token_9 rawRecipeLine* |
+  token_10 rawRecipeLine+
+}
+
+rawRecipeLine {
+  Comment |
+  Conditional |
+  prefixedRecipeLine
+}
+
+attachedRecipeLine {
+  ";" RecipeLine?
+}
+
+prefixedRecipeLine {
+  recipeprefix RecipeLine? token_11
+}
+
+RecipeLine {
+  (token_12 | token_13 | token_14)? (ShellText { shellTextWithSplit1 } (recipeprefix? ShellText { shellTextWithSplit1 })* recipeprefix?)? ShellText { shellTextWithoutSplit }
+}
+
+variableDefinition {
+  VPATHAssignment |
+  /* precedence: 2 */ (RecipeprefixAssignment) |
+  VariableAssignment |
+  ShellAssignment |
+  DefineDirective
+}
+
+VPATHAssignment {
+  kw<"VPATH"> token_15? ("=" | ":=" | "::=" | "?=" | "+=") Paths token_16
+}
+
+RecipeprefixAssignment {
+  kw<".RECIPEPREFIX"> token_17? recipeprefixAssignmentOperator recipeprefixAssignmentValue token_18
+}
+
+VariableAssignment {
+  targetOrPatternAssignment? name token_19? ("=" | ":=" | "::=" | "?=" | "+=") token_20? Text? token_21
+}
+
+targetOrPatternAssignment {
+  List ":" token_22?
+}
+
+ShellAssignment {
+  Word token_23? "!=" token_24? shellCommand token_25
+}
+
+DefineDirective {
+  kw<"define"> Word token_26? ("=" | ":=" | "::=" | "?=" | "+=")? token_27? token_28 RawText { rawline+ }? token_29 token_30
+}
+
+directive {
+  IncludeDirective |
+  VpathDirective |
+  ExportDirective |
+  UnexportDirective |
+  OverrideDirective |
+  UndefineDirective |
+  PrivateDirective |
+  Conditional
+}
+
+IncludeDirective {
+  kw<"include"> List token_31 |
+  kw<"sinclude"> List token_32 |
+  kw<"-include"> List token_33
+}
+
+VpathDirective {
+  kw<"vpath"> token_34 |
+  kw<"vpath"> Word token_35 |
+  kw<"vpath"> Word Paths token_36
+}
+
+ExportDirective {
+  kw<"export"> token_37 |
+  kw<"export"> List token_38 |
+  kw<"export"> VariableAssignment
+}
+
+UnexportDirective {
+  kw<"unexport"> token_39 |
+  kw<"unexport"> List token_40
+}
+
+OverrideDirective {
+  kw<"override"> DefineDirective |
+  kw<"override"> VariableAssignment |
+  kw<"override"> UndefineDirective
+}
+
+UndefineDirective {
+  kw<"undefine"> Word token_41
+}
+
+PrivateDirective {
+  kw<"private"> VariableAssignment
+}
+
+Conditional {
+  conditionalDirectives conditionalConsequence? ElsifDirective* ElseDirective? kw<"endif"> token_42
+}
+
+ElsifDirective {
+  kw<"else"> conditionalDirectives conditionalConsequence?
+}
+
+ElseDirective {
+  kw<"else"> token_43 conditionalConsequence?
+}
+
+conditionalDirectives {
+  IfeqDirective |
+  IfneqDirective |
+  IfdefDirective |
+  IfndefDirective
+}
+
+conditionalConsequence {
+  (thing | prefixedRecipeLine)+
+}
+
+IfeqDirective {
+  kw<"ifeq"> conditionalArgsCmp token_44
+}
+
+IfneqDirective {
+  kw<"ifneq"> conditionalArgsCmp token_45
+}
+
+IfdefDirective {
+  kw<"ifdef"> primary token_46
+}
+
+IfndefDirective {
+  kw<"ifndef"> primary token_47
+}
+
+conditionalArgsCmp {
+  "(" primary? "," primary? ")" |
+  primary primary
+}
+
+variable {
+  VariableReference |
+  SubstitutionReference |
+  AutomaticVariable
+}
+
+VariableReference {
+  "$" ("(" primary ")" | "{" primary "}")
+}
+
+SubstitutionReference {
+  ("$" | "$$") ("(" primary ":" primary "=" primary ")" | "{" primary ":" primary "=" primary "}")
+}
+
+AutomaticVariable {
+  ("$" | "$$") (token_48 | token_49 | token_50 | token_51 | token_52 | token_53 | token_54 | token_55 | "(" (token_56 | token_57 | token_58 | token_59 | token_60 | token_61 | token_62 | token_63) ("D" | "F")? ")" | "{" (token_64 | token_65 | token_66 | token_67 | token_68 | token_69 | token_70 | token_71) ("D" | "F")? "}")
+}
+
+function {
+  FunctionCall |
+  shellFunction
+}
+
+FunctionCall {
+  "$" ("(" ("subst" | "patsubst" | "strip" | "findstring" | "filter" | "filter-out" | "sort" | "word" | "words" | "wordlist" | "firstword" | "lastword" | "dir" | "notdir" | "suffix" | "basename" | "addsuffix" | "addprefix" | "join" | "wildcard" | "realpath" | "abspath" | "error" | "warning" | "info" | "origin" | "flavor" | "foreach" | "if" | "or" | "and" | "call" | "eval" | "file" | "value") token_72 Arguments ")" | "{" ("subst" | "patsubst" | "strip" | "findstring" | "filter" | "filter-out" | "sort" | "word" | "words" | "wordlist" | "firstword" | "lastword" | "dir" | "notdir" | "suffix" | "basename" | "addsuffix" | "addprefix" | "join" | "wildcard" | "realpath" | "abspath" | "error" | "warning" | "info" | "origin" | "flavor" | "foreach" | "if" | "or" | "and" | "call" | "eval" | "file" | "value") token_73 Arguments "}")
+}
+
+Arguments {
+  Argument ("," Argument)*
+}
+
+Argument {
+  Word |
+  variable |
+  function
+}
+
+shellFunction {
+  ShellFunction
+}
+
+ShellFunction {
+  "$" "(" kw<"shell"> token_74? shellCommand ")"
+}
+
+ShellExpression {
+  "$$" "(" shellCommand ")"
+}
+
+List { list1 }
+
+Paths {
+  primary ((":" | ";") primary)*
+}
+
+primary {
+  Word |
+  Archive |
+  variable |
+  function |
+  Concatenation |
+  String
+}
+
+Concatenation /* precedence: right 0 */ {
+  primary /* precedence: left 0 */ (primary)+
+}
+
+name {
+  Word
+}
+
+String {
+  "\"" string? "\"" | "'" string? "'"
+}
+
+string {
+  (variable | function | token_78)+
+}
+
+Archive {
+  Word "(" List ")"
+}
+
+shellTextWithoutSplit {
+  token_79 ((variable | function | Escape { "$$" } | Escape { kw<"//"> }) token_80?)* |
+  (variable | function | Escape { "$$" } | Escape { kw<"//"> }) (token_81? (variable | function | Escape { "$$" } | Escape { kw<"//"> }))* token_82?
+}
+
+ShellTextWithSplit { shellTextWithSplit1 }
+
+shellCommand {
+  ShellCommand { text1 }
+}
+
+Text { text1 }
+
+Comment {
+  token_88 token_89
+}
+
+list1 /* precedence: 1 */ {
+  primary ((token_75 | token_76) primary)* token_77?
+}
+
+shellTextWithSplit1 {
+  shellTextWithoutSplit token_83
+}
+
+text1 {
+  token_84 ((variable | function | Escape { "$$" } | Escape { kw<"//"> }) token_85?)* |
+  (variable | function | Escape { "$$" } | Escape { kw<"//"> }) (token_86? (variable | function | Escape { "$$" } | Escape { kw<"//"> }))* token_87?
+}
+
+kw<term> { @specialize[@name={term}]<Word, term> }
+
+@skip { token_1 | token_2 }
+
+@external tokens token from "./scanner.js" {
+  recipeprefix,
+  recipeprefixAssignmentOperator,
+  recipeprefixAssignmentValue
+}
+
+@tokens {
+  token_1 {
+    $[ \t\n\r]
+  }
+  token_2 {
+    "\\" "\\r"? "\\n" | "\\r"
+  }
+  token_3 {
+    $[\r\n]+
+  }
+  token_4 {
+    $[\t ]+
+  }
+  token_5 {
+    $[\r\n]+
+  }
+  token_6 {
+    $[\t ]+
+  }
+  token_7 {
+    $[\t ]+
+  }
+  token_8 {
+    $[\r\n]+
+  }
+  token_9 {
+    $[\r\n]+
+  }
+  token_10 {
+    $[\r\n]+
+  }
+  token_11 {
+    $[\r\n]+
+  }
+  token_12 /* precedence: 1 */ {
+    "@"
+  }
+  token_13 /* precedence: 1 */ {
+    "-"
+  }
+  token_14 /* precedence: 1 */ {
+    "+"
+  }
+  token_15 {
+    $[\t ]+
+  }
+  token_16 {
+    $[\r\n]+
+  }
+  token_17 {
+    $[\t ]+
+  }
+  token_18 {
+    $[\r\n]+
+  }
+  token_19 {
+    $[\t ]+
+  }
+  token_20 {
+    $[\t ]+
+  }
+  token_21 {
+    $[\r\n]+
+  }
+  token_22 {
+    $[\t ]+
+  }
+  token_23 {
+    $[\t ]+
+  }
+  token_24 {
+    $[\t ]+
+  }
+  token_25 {
+    $[\r\n]+
+  }
+  token_26 {
+    $[\t ]+
+  }
+  token_27 {
+    $[\t ]+
+  }
+  token_28 {
+    $[\r\n]+
+  }
+  token_29 /* precedence: 1 */ {
+    "endef"
+  }
+  token_30 {
+    $[\r\n]+
+  }
+  token_31 {
+    $[\r\n]+
+  }
+  token_32 {
+    $[\r\n]+
+  }
+  token_33 {
+    $[\r\n]+
+  }
+  token_34 {
+    $[\r\n]+
+  }
+  token_35 {
+    $[\r\n]+
+  }
+  token_36 {
+    $[\r\n]+
+  }
+  token_37 {
+    $[\r\n]+
+  }
+  token_38 {
+    $[\r\n]+
+  }
+  token_39 {
+    $[\r\n]+
+  }
+  token_40 {
+    $[\r\n]+
+  }
+  token_41 {
+    $[\r\n]+
+  }
+  token_42 {
+    $[\r\n]+
+  }
+  token_43 {
+    $[\r\n]+
+  }
+  token_44 {
+    $[\r\n]+
+  }
+  token_45 {
+    $[\r\n]+
+  }
+  token_46 {
+    $[\r\n]+
+  }
+  token_47 {
+    $[\r\n]+
+  }
+  token_48 /* precedence: 1 */ {
+    "@"
+  }
+  token_49 /* precedence: 1 */ {
+    "%"
+  }
+  token_50 /* precedence: 1 */ {
+    "<"
+  }
+  token_51 /* precedence: 1 */ {
+    "?"
+  }
+  token_52 /* precedence: 1 */ {
+    "^"
+  }
+  token_53 /* precedence: 1 */ {
+    "+"
+  }
+  token_54 /* precedence: 1 */ {
+    "/"
+  }
+  token_55 /* precedence: 1 */ {
+    "*"
+  }
+  token_56 /* precedence: 1 */ {
+    "@"
+  }
+  token_57 /* precedence: 1 */ {
+    "%"
+  }
+  token_58 /* precedence: 1 */ {
+    "<"
+  }
+  token_59 /* precedence: 1 */ {
+    "?"
+  }
+  token_60 /* precedence: 1 */ {
+    "^"
+  }
+  token_61 /* precedence: 1 */ {
+    "+"
+  }
+  token_62 /* precedence: 1 */ {
+    "/"
+  }
+  token_63 /* precedence: 1 */ {
+    "*"
+  }
+  token_64 /* precedence: 1 */ {
+    "@"
+  }
+  token_65 /* precedence: 1 */ {
+    "%"
+  }
+  token_66 /* precedence: 1 */ {
+    "<"
+  }
+  token_67 /* precedence: 1 */ {
+    "?"
+  }
+  token_68 /* precedence: 1 */ {
+    "^"
+  }
+  token_69 /* precedence: 1 */ {
+    "+"
+  }
+  token_70 /* precedence: 1 */ {
+    "/"
+  }
+  token_71 /* precedence: 1 */ {
+    "*"
+  }
+  token_72 {
+    $[\t ]+
+  }
+  token_73 {
+    $[\t ]+
+  }
+  token_74 {
+    $[\t ]+
+  }
+  token_75 {
+    $[\t ]+
+  }
+  token_76 {
+    "\\" "\\r"? "\\n" | "\\r"
+  }
+  token_77 {
+    $[\t ]+
+  }
+  token_78 /* precedence: -1 */ {
+    (!['"$\r\n\\] | "\\\\\\\\" | "\\\\" ![\r\n])+
+  }
+  Word {
+    ($[a-zA-Z0-9%\+\-\.@_\*\?\/] | "\\\\" $[abtnvfrE!"#\$&'\(\)\*,;<>\?\[\\\]^`{\|}~] | "\\\\" $[0-9] $[0-9] $[0-9] )+
+  }
+  rawline {
+    ![\n]* $[\r\n]+
+  }
+  token_79 {
+    (![\$\r\n\\] | "\\\\" $[abtnvfrE!"#\$&'\(\)\*,;<>\?\[\\\]^`{\|}~] | "\\\\" $[0-9] $[0-9] $[0-9]  | "\\\\" ![\n\r])+
+  }
+  token_80 {
+    (![\$\r\n\\] | "\\\\" $[abtnvfrE!"#\$&'\(\)\*,;<>\?\[\\\]^`{\|}~] | "\\\\" $[0-9] $[0-9] $[0-9]  | "\\\\" ![\n\r])+
+  }
+  token_81 {
+    (![\$\r\n\\] | "\\\\" $[abtnvfrE!"#\$&'\(\)\*,;<>\?\[\\\]^`{\|}~] | "\\\\" $[0-9] $[0-9] $[0-9]  | "\\\\" ![\n\r])+
+  }
+  token_82 {
+    (![\$\r\n\\] | "\\\\" $[abtnvfrE!"#\$&'\(\)\*,;<>\?\[\\\]^`{\|}~] | "\\\\" $[0-9] $[0-9] $[0-9]  | "\\\\" ![\n\r])+
+  }
+  token_83 {
+    "\\" "\\r"? "\\n" | "\\r"
+  }
+  token_84 {
+    (![\$\(\)\n\r\\] | token_84 | "\\\\" $[abtnvfrE!"#\$&'\(\)\*,;<>\?\[\\\]^`{\|}~] | "\\\\" $[0-9] $[0-9] $[0-9]  | "\\\\" ![\n\r])+
+  }
+  token_85 {
+    (![\$\(\)\n\r\\] | token_85 | "\\\\" $[abtnvfrE!"#\$&'\(\)\*,;<>\?\[\\\]^`{\|}~] | "\\\\" $[0-9] $[0-9] $[0-9]  | "\\\\" ![\n\r])+
+  }
+  token_86 {
+    (![\$\(\)\n\r\\] | token_86 | "\\\\" $[abtnvfrE!"#\$&'\(\)\*,;<>\?\[\\\]^`{\|}~] | "\\\\" $[0-9] $[0-9] $[0-9]  | "\\\\" ![\n\r])+
+  }
+  token_87 {
+    (![\$\(\)\n\r\\] | token_87 | "\\\\" $[abtnvfrE!"#\$&'\(\)\*,;<>\?\[\\\]^`{\|}~] | "\\\\" $[0-9] $[0-9] $[0-9]  | "\\\\" ![\n\r])+
+  }
+  token_88 /* precedence: -1 */ {
+    "#" ![\n]*
+  }
+  token_89 {
+    $[\r\n]+
+  }
+}
