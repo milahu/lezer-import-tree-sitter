@@ -7,8 +7,13 @@ cd "$(dirname "$0")"/..
 import_js="$(readlink -f dist/import-cli.js)"
 import_scanner_js="$(readlink -f src/import-scanner.js)"
 
+test_cases="$@"
+if [ -z "$test_cases" ]; then
+    test_cases=$(find test/cases/ -mindepth 1 -maxdepth 1 -type d)
+fi
+
 # loop test cases
-for dir in $(find test/cases/ -mindepth 1 -maxdepth 1 -type d)
+for dir in $test_cases
 do
 
 echo
