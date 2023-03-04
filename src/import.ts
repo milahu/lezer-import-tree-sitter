@@ -306,8 +306,8 @@ export class Context {
     let ruleStr = rules.map(r => `${r} ${this.rules[r]}\n\n`).join("")
     let externalStr = ""
     if (this.def.externals && this.def.externals.length) {
-      const tmp = this.def.externals.filter((s): s is SymbolExpr => s.type == "SYMBOL").map(s => this.translateName(s.name)).join(", ")
-      externalStr = `@external tokens token from "./scanner.js" { ${tmp} }\n\n`
+      const tmp = this.def.externals.filter((s): s is SymbolExpr => s.type == "SYMBOL").map(s => this.translateName(s.name)).join(",\n  ")
+      externalStr = `@external tokens token from "./scanner.js" {\n  ${tmp}\n}\n\n`
     }
     let tokens = Object.keys(this.tokens)
     let tokenStr = `@tokens {\n${tokens.map(t => `  ${t} ${this.tokens[t]}\n`).join("")}}`
