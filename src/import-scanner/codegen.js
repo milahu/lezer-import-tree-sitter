@@ -1,3 +1,13 @@
+/*
+
+FIXME
+actual: "+=" == variable_operator
+expected: variable_operator[0] == plus && variable_operator[1] == equal
+
+.substr -> .slice
+
+*/
+
 import {ESLint} from "eslint"
 import MagicString from "magic-string"
 import lineColumn from 'line-column'
@@ -11,14 +21,34 @@ import { firstChild, nextSibling, getParent, nodeText, findNode,
   filterNodes, reduceNodes, filterChildNodes } from './lezer-tree-query.js'
 import { humanFormatNode, printNode, exitNode } from './lezer-tree-format.js'
 
+// https://github.com/stdlib-js/string-base-format-tokenize/blob/main/lib/main.js
+import formatTokenize from "./stdlib-string-base-format-tokenize.js";
+
 export function commentLines(s, label = "") {
+  s = String(s)
   if (label) {
     return s.trim().split("\n").map(line => "/// @" + label + " " + line).join("\n") + "\n"
   }
   return s.trim().split("\n").map(line => "/// " + line).join("\n") + "\n"
 }
 
+const tsTypeOfCType = {
+  void: "void",
+  bool: "boolean",
+  int: "number",
+  uint32_t: "number",
+  int32_t: "number",
+  float: "number",
+  char: "number",
+  wstring: "string", // TODO what is wstring. convert to number[]?
+  // TODO more
+}
+
 function commentBlock(s, label = "") {
+  // using jsdoc comments (/** ... */) as workaround for terser
+  // terser removes normal block comments (/* ... */)
+  // but with {comments: "all"} config,
+  // terser "evaluate" fails to eval x.push(...[y]) to x.push(y)
   if (typeof s != "string") {
     s = JSON.stringify(s, null, 2) // pretty print
   }
@@ -28,9 +58,9 @@ function commentBlock(s, label = "") {
     s = "\n* " + s.replace(/\n/g, "\n* ") + "\n"
   }
   if (label) {
-    return `/* @${label} ${s.replace(/\*\//g, "*\\/")} */`
+    return `/** @${label} ${s.replace(/\*\//g, "*\\/")} */`
   }
-  return `/* ${s.replace(/\*\//g, "*\\/")} */`
+  return `/** ${s.replace(/\*\//g, "*\\/")} */`
 }
 
 /** convert tree-sitter to lezer-parser token name */
@@ -92,6 +122,7 @@ const transpileOfNodeType = {
     // translate keys
     const keysMap = {
       size: "length",
+      substr: "slice", // string to number[]
     }
     keys = keys.map(key => (key in keysMap) ? keysMap[key] : key)
     return (
@@ -113,7 +144,7 @@ const transpileOfNodeType = {
     // function
     const nameNode = node
     let name = nodeText(node, state)
-    if (node.type.name == "FieldExpression") {
+    if (node.type.name == "FieldExpression") { // TODO what?
       // based on FieldExpression(node, state)
       let node = firstChild(nameNode) // object
       const name = nodeText(node, state)
@@ -124,6 +155,8 @@ const transpileOfNodeType = {
         keys.push(nodeText(node, state))
         node = nextSibling(node)
       }
+      // FIXME add "Scanner#variable_operator" in analyze pass
+      // FIXME add "Scanner#variable_name" in analyze pass
       if (state.convertStringToArrayNames.has(name)) {
         // convert string to array
         //printNode(fullNode, state); console.dir({keys}); process.exit()
@@ -144,22 +177,32 @@ const transpileOfNodeType = {
             // someString.size() -> someArray.length
             return `${name}.length`
           }
+          if (keys[0] == "c_str") {
+            // someString.c_str() -> someArray
+            return name;
+          }
         }
         // TODO more
-        printNode(fullNode, state); console.dir({keys}); process.exit()
+        console.error("FIXME handle string method")
+        printNode(fullNode, state)
+        console.error({keys})
+        //process.exit()
       }
+      console.error(`codegen 160: variable ${name} not found in state.convertStringToArrayNames: ${Array.from(state.convertStringToArrayNames).join(", ")}`)
       if (keys.slice(-1)[0] == "size") {
         // x.size() -> x.length
         // translate keys
         const keysMap = {
           size: "length",
         }
+        // translate keys
         keys = keys.map(key => (key in keysMap) ? keysMap[key] : key)
         // debug
         if (
           name != "delimiter" &&
           keys[0] != "advance"
         ) {
+          printNode(nameNode, state, "codegen 160: nameNode");
           throw new Error("TODO CallExpression to FieldExpression: " + name + "." + keys.join("."))
         }
         return (
@@ -218,6 +261,62 @@ const transpileOfNodeType = {
         `/// @todo token name. original call: ${JSON.stringify(nodeText(fullNode, state))}\n` +
         `input.acceptToken(TODO_TOKEN_NAME)`
       )
+    }
+    if (name == "printf") {
+
+      // parse arguments
+      const args = []
+      node = firstChild(node)
+      while (node) {
+        if (
+          node.type.name != "(" &&
+          node.type.name != "," &&
+          node.type.name != ")"
+        ) {
+          //args.push(nodeText(node, state))
+          args.push(formatNode(node, state))
+        }
+        node = nextSibling(node)
+      }
+
+      //console.log('codegen 250: args:', args)
+
+      const formatStringRaw = args.shift()
+      const formatString = formatStringRaw.slice(1, -1) // remove quotes "..."
+      const formatTokens = formatTokenize(formatString)
+
+      let result = ""
+      //result += commentLines([formatString, ...args], 'codegen 250: args') + '\n'
+      //result += commentLines(formatTokens, 'codegen 250: formatTokens') + '\n'
+      const lastToken = formatTokens.slice(-1)[0] || ""
+      if (lastToken.endsWith("\\n")) {
+        result += 'console.log(`'
+        formatTokens[formatTokens.length - 1] = lastToken.slice(0, -2) // remove \n
+      }
+      else {
+        result += 'process.stdout.write(`'
+      }
+      for (const token of formatTokens) {
+        if (typeof token == 'string') {
+          // fixed string
+          result += token.replace(/\$\{/g, '\\${')
+        }
+        else {
+          // interpolation
+          const valueExpr = args.shift()
+          // TODO inverse of convertStringToArrayNames
+          // convert number[] to string
+          // convert number to char
+          if (state.convertStringToArrayNames.has(valueExpr)) {
+            result += '${strArr(' + valueExpr + ')}'
+          }
+          else {
+            result += '${' + valueExpr + '}'
+          }
+        }
+      }
+      result += '`)'
+      return result
     }
     return (
       //todoNode(fullNode, state) +
@@ -293,10 +392,52 @@ const transpileOfNodeType = {
     }
     if (state.convertStringToArrayNames.has(name)) {
       // convert string to array
-      return (
-        `/// converted string to number[]\n` +
-        `${name}.push(${formatNode(rightNode, state)})`
+      // FIXME: variable_operator = "";
+      // string to number[]
+
+      let numberArrayExpr = ""
+      // prefix before the assignment expression
+      let exprPrefix = ""
+
+      if (rightNode.type.name == "String") {
+        const quotedString = formatNode(rightNode, state)
+        const string = quotedString.slice(1, -1)
+        const numberArray = string.split("").map(c => c.charCodeAt(0))
+        numberArrayExpr = `[${numberArray.join(", ")}]`
+      }
+      else {
+        // FIXME we need the type of variable in expr
+        // expr is number -> push(expr) // frequent case
+        // expr is number[] -> push(...expr) // rare case
+        const rightNodeText = formatNode(rightNode, state)
+        // frequent case: expr is number
+        exprPrefix = [
+          `if (debug && !(typeof ${rightNodeText} == "number")) {`,
+          (
+            `throw new Error(\`type error in variable ${rightNodeText}: ` +
+            `expected number, actual \${typeof ${rightNodeText}}\`);`
+          ),
+          `}`,
+        ].join("\n") + "\n"
+        numberArrayExpr = `[${rightNodeText}]`
+        // rare case: expr is number[]
+        //numberArrayExpr = rightNodeText
+        // switch on runtime: slow
+        //numberArrayExpr = `Array.isArray(${rightNodeText}) ? ${rightNodeText} : [${rightNodeText}]` + commentBlock(`FIXME: assert: typeof ${rightNodeText} == number`)
+      }
+
+      let result = (
+          `/// converted string to number[]\n` +
+          commentLines(nodeText(rightNode, state), "string node") + "\n"
       )
+      if (operatorText == "+=") {
+        result += exprPrefix + `${name}.push(...${numberArrayExpr})`
+      }
+      else {
+        // operatorText == "="
+        result += exprPrefix + `${name} = ${numberArrayExpr}`
+      }
+      return result
     }
     //return unwrapNode(fullNode, state) // wrong, "=" is missing
     //return humanFormatNode(fullNode, state, "/// @todo CallExpression")
@@ -417,13 +558,8 @@ const transpileOfNodeType = {
     }
 
     let tsType;
-    const typesMap = {
-      int: "number",
-      wstring: "string", // TODO what is wstring
-      // TODO more
-    }
-    if (type in typesMap) {
-      type = typesMap[type]
+    if (type in tsTypeOfCType) {
+      type = tsTypeOfCType[type]
     }
     if (type == "string") {
       // quickfix: lezer-parser returns characters as numbers
@@ -489,12 +625,8 @@ const transpileOfNodeType = {
         let n = firstChild(node)
         let type = nodeText(n, state)
         // TODO refactor tsType
-        const typesMap = {
-          uint32_t: "number",
-          bool: "boolean",
-        };
-        if (type in typesMap) {
-          type = typesMap[type];
+        if (type in tsTypeOfCType) {
+          type = tsTypeOfCType[type];
         }
         n = nextSibling(n)
         const key = nodeText(n, state)
@@ -639,19 +771,55 @@ const transpileOfNodeType = {
           {: "{"
           ExpressionStatement: "lexer->advance(lexer, true);"
     */
+
+    printNode(node, state, "codegen 600: FunctionDefinition")
+
     let result = ""
-    node = firstChild(node) // return type
-    // TODO translate cppType to tsType
-    result += `/** @return {${node.type.format(node, state)}} */\n`
-    node = nextSibling(node) // FunctionDeclarator
+
+    node = firstChild(node) // return type or "inline"
+    if (node.type.name == "inline") {
+      node = nextSibling(node) // return type
+    }
+
+    let isConstructor = false
+    if (node.type.name == "FunctionDeclarator") {
+      // constructor function has no return type
+      isConstructor = true
+      // FIXME constructor is never called
+    }
+    else {
+      // node is return type
+      //printNode(node, state, "codegen: return type")
+      // TODO translate cppType to tsType
+      result += `/** @return {${node.type.format(node, state)}} */\n`
+
+      node = nextSibling(node) // FunctionDeclarator
+    }
+
+    printNode(node, state, "codegen 600: FunctionDeclarator")
     const functionDeclaratorNode = node
+
     node = firstChild(node) // FieldIdentifier (function is class method)
+    //printNode(node, state, "codegen: FieldIdentifier")
     const name = nodeText(node, state)
+    if (name.match(/^(serialize|deserialize).*/)) {
+      // ignore the "serialize" and "deserialize" functions
+      // TODO also ignore:
+      // tree_sitter_${language_name}_external_scanner_serialize
+      // tree_sitter_${language_name}_external_scanner_deserialize
+      return "";
+    }
+    console.error(`codegen 600: name = ${name}`)
     result += `function ${name}`
+
     node = nextSibling(node) // ParameterList
+    //printNode(node, state, "codegen: ParameterList")
     result += node.type.format(node, state)
+
     node = nextSibling(functionDeclaratorNode) // CompoundStatement
+    // FIXME node is null
     result += node.type.format(node, state)
+
     return result
   },
   ParameterDeclaration(node, state) {
@@ -681,14 +849,7 @@ const transpileOfNodeType = {
       isPointer = true
     }
     const name = nodeText(node, state)
-    // TODO refactor
-    const typesMap = {
-      bool: "boolean",
-      int: "number",
-      int32_t: "number",
-      float: "number",
-    }
-    const tsType = typesMap[type]
+    const tsType = tsTypeOfCType[type]
     return (
       (isPointer ? "/* @todo pointer */" : "") +
       `/** @type {${tsType || type}} */ ${name}`
@@ -721,16 +882,9 @@ const transpileOfNodeType = {
     return result
   },
   PrimitiveType(node, state) {
-    // TODO refactor
-    const typesMap = {
-      bool: "boolean",
-      int: "number",
-      int32_t: "number",
-      float: "number",
-    }
     const type = nodeText(node, state)
-    if (type in typesMap) {
-      return typesMap[type]
+    if (type in tsTypeOfCType) {
+      return tsTypeOfCType[type]
     }
     else {
       return todoNode(node, state)
@@ -755,14 +909,7 @@ const transpileOfNodeType = {
     node = firstChild(node) // "("
     node = nextSibling(node) // TypeDescriptor
     const type = node.type.format(node, state)
-    // TODO refactor
-    const typesMap = {
-      bool: "boolean",
-      int: "number",
-      int32_t: "number",
-      float: "number",
-    }
-    const tsType = typesMap[type]
+    const tsType = tsTypeOfCType[type]
     node = nextSibling(node) // ")"
     node = nextSibling(node) // expr
     const expr = node.type.format(node, state)
@@ -787,6 +934,120 @@ const transpileOfNodeType = {
       )
     }
     return name
+  },
+  BinaryExpression(node, state) {
+    let result = ""
+
+    const leftNode = firstChild(node)
+    const left = formatNode(leftNode, state)
+    const operatorNode = nextSibling(leftNode)
+    const operator = formatNode(operatorNode, state)
+    const rightNode = nextSibling(operatorNode)
+    const right = formatNode(rightNode, state)
+
+    // TODO micro optimize
+    // input: s == "ab"
+    // slow output: strArr(s) == "ab"
+    // fast output: s[0] == 97 && s[1] == 98
+
+    /*
+      example:
+      BinaryExpression: "variable_operator == \"+=\""
+        Identifier: "variable_operator"
+        CompareOp: "=="
+        String: "\"+=\""
+    */
+
+    if (
+      operatorNode.type.name == "CompareOp" &&
+      (
+        leftNode.type.name == "String" ||
+        rightNode.type.name == "String"
+      )
+    ) {
+
+      if (
+        leftNode.type.name == "Identifier" &&
+        state.convertStringToArrayNames.has(left)
+        // &&
+        //operatorNode.type.name == "CompareOp" &&
+        //rightNode.type.name == "String"
+      ) {
+        return `strArr(${left}) ${operator} ${right}`
+      }
+
+      if (
+        //leftNode.type.name == "String" &&
+        //operatorNode.type.name == "CompareOp" &&
+        rightNode.type.name == "Identifier" &&
+        state.convertStringToArrayNames.has(right)
+      ) {
+        return `${left} ${operator} strArr(${right})`
+      }
+
+      /*
+        example:
+        BinaryExpression: "variable_value.substr(0, 4) == \"$() \""
+          CallExpression: "variable_value.substr(0, 4)"
+            FieldExpression: "variable_value.substr"
+              Identifier: "variable_value"
+              FieldIdentifier: "substr"
+            ArgumentList: "(0, 4)"
+              (: "("
+              Number: "0"
+              ,: ","
+              Number: "4"
+              ): ")"
+          CompareOp: "=="
+          String: "\"$() \""
+      */
+      // note:
+      // variable_value.substr(0, 4) is converted by formatNode to
+      // variable_value.slice(0, 4)
+
+      if (
+        leftNode.type.name == "CallExpression" &&
+        firstChild(leftNode).type.name == "FieldExpression" &&
+        firstChild(firstChild(leftNode)).type.name == "Identifier" &&
+        state.convertStringToArrayNames.has(nodeText(firstChild(firstChild(leftNode)), state))
+        // &&
+        //operatorNode.type.name == "CompareOp" &&
+        //rightNode.type.name == "String"
+      ) {
+        return `strArr(${left}) ${operator} ${right}`
+      }
+
+      if (
+        //leftNode.type.name == "String" &&
+        //operatorNode.type.name == "CompareOp" &&
+        rightNode.type.name == "CallExpression" &&
+        firstChild(rightNode).type.name == "FieldExpression" &&
+        firstChild(firstChild(rightNode)).type.name == "Identifier" &&
+        state.convertStringToArrayNames.has(nodeText(firstChild(firstChild(rightNode)), state))
+      ) {
+        return `${left} ${operator} strArr(${right})`
+      }
+
+      // unhandled string compare
+      result += todoNode(node, state)
+
+    }
+
+    // TODO compare 2 members of state.convertStringToArrayNames
+    // for loop?
+    /*
+      function strArrEqual(a, b) {
+        if (a.length != b.length) return false
+        for (let i = 0; i < a.length; i++) {
+          if (a[i] != b[i]) return false
+        }
+        return true
+      }
+    */
+
+    // simple case
+    result += unwrapNode(node, state)
+    return result
   },
 }
 
@@ -846,12 +1107,17 @@ transpileOfNodeType.WhileStatement = unwrapNode
 //transpileOfNodeType.ForStatement = unwrapNode // no. semicolons are missing
 transpileOfNodeType.ConditionClause = unwrapNode
 transpileOfNodeType.IfStatement = unwrapNode
-transpileOfNodeType.BinaryExpression = unwrapNode
+//transpileOfNodeType.BinaryExpression = unwrapNode // no. must handle comparison of strings
 //transpileOfNodeType.SubscriptExpression = unwrapNode // no. must handle valid_symbols[X]
 transpileOfNodeType.UnaryExpression = unwrapNode
 transpileOfNodeType.ArgumentList = unwrapNode
 transpileOfNodeType.ParenthesizedExpression = unwrapNode
 transpileOfNodeType.TypeDescriptor = unwrapNode // TODO?
+
+transpileOfNodeType.String = copyNode
+transpileOfNodeType.EscapeSequence = copyNode // example: \n
+
+transpileOfNodeType.BlockComment = copyNode
 
 transpileOfNodeType[","] = copyNode
 transpileOfNodeType["("] = copyNode
@@ -907,15 +1173,22 @@ export function formatNode(node, state) {
 function getFileHeader(state) {
 
   // TODO get names from grammar -> import.ts
-  const newNames = ["Todo", "Todo2"]
+  //const newNames = ["Todo", "Todo2"]
 
   const fileHeader = [
     //`// tokens.js`,
     `// scanner.js - generated from scanner.cc`,
     //`/// TODO translate functions from scanner.c`,
     ``,
-    //`const debug = true`,
-    //``,
+    `// global defines`,
+    (
+      `const debug = ["1", "true"].includes(` +
+      `(typeof process != "undefined" && process.env.DEBUG_LEZER_PARSER_${state.languageNameUpper}) || ` +
+      `globalThis.DEBUG_LEZER_PARSER_${state.languageNameUpper})`
+    ),
+    ...Object.entries(state.globalDefines).map(([key, val]) => `const ${key} = ${val}`),
+    ``,
+    `// lezer`,
     /*
     `import {`,
     `  ExternalTokenizer,`,
@@ -923,13 +1196,9 @@ function getFileHeader(state) {
     `} from "@lezer/lr"`,
     */
     `import { ExternalTokenizer } from "@lezer/lr"`,
-    ``,
-
-    // jsdoc types: not needed, @lezer/lr has typescript types
-    //`/**`,
-    // TODO import types?
     // https://lezer.codemirror.net/docs/ref/#lr.InputStream
-    // /** @typedef {import("@lezer/lr").SomeType} SomeType */
+    `/** @typedef {import("@lezer/lr").InputStream} InputStream */`,
+    ``,
     /*
     // two types: Input + ETF
     `  @typedef {{`,
@@ -973,6 +1242,7 @@ function getFileHeader(state) {
     `// @ts-ignore Cannot find module - file is generated`,
     `import * as ${state.tokensObjectName} from "./parser.terms.js"`,
     ``,
+    `// constants`,
     ...(
       state.usedAsciiCodes.size > 0
       ? [
@@ -995,22 +1265,31 @@ function getFileHeader(state) {
     ``,
     `const iswspace = (code) => spaceCodes.includes(code);`,
     */
-    `const spaceCodeSet = new Set([`,
+    `const spaceNums = new Set([`,
     `  9, 10, 11, 12, 13, 32, 133, 160, 5760, 8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200,`,
     `  8201, 8202, 8232, 8233, 8239, 8287, 12288`,
     `])`,
     ``,
-    `/** @param {number} code */`,
-    `const iswspace = (code) => spaceCodeSet.has(code);`,
+    `// functions`,
+    `/** @param {number} num */`,
+    `const iswspace = (num) => spaceNums.has(num);`,
+    ``,
+    `/** @param {number} num */`,
+    `const iswdigit = (num) => (48 <= num && num <= 57);`,
     ``,
     `/** @param {number} code */`,
-    `const iswdigit = (code) => (48 <= code && code <= 57);`,
+    //`const iswalpha = (num) => ((65 <= num && num <= 90) || (97 <= num && num <= 122));`,
+    `const iswalpha = (num) => (65 <= num && num <= 122 && (num <= 90 || 97 <= num));`,
     ``,
-    `/** @param {number} code */`,
-    //`const iswalpha = (code) => ((65 <= code && code <= 90) || (97 <= code && code <= 122));`,
-    `const iswalpha = (code) => (65 <= code && code <= 122 && (code <= 90 || 97 <= code));`,
+    `const abort = () => { throw new Error("abort"); };`,
     ``,
-    // TODO restore. add only used charsugly
+    `/** @type {(arr: number[]) => string} */`,
+    `const strArr = (arr) => arr.map(num => String.fromCharCode(num)).join('');`,
+    ``,
+    `/** @type {(num: number) => string} */`,
+    `const charNum = (num) => String.fromCharCode(num);`,
+    ``,
+    // TODO restore. add only used chars
     ``,
     ...(
       state.scannerStateVars.length == 0 ? "" : [
@@ -1018,18 +1297,13 @@ function getFileHeader(state) {
         ...state.scannerStateVars.map(({name, type, value}) => {
           // TODO refactor tsType
           let tsType;
-          const typesMap = {
-            int: "number",
-            wstring: "string", // TODO what is wstring
-            bool: "boolean",
-            // TODO more
-          }
-          if (type in typesMap) {
-            type = typesMap[type]
+          if (type in tsTypeOfCType) {
+            type = tsTypeOfCType[type]
           }
           let isConvertStringToArray = false
-          let needsType = false
-          if (type == "string") {
+          //let needsType = false
+          let needsType = true // verbose. make all types explicit
+          if (type == "string" || type == "std::string") {
             // quickfix: lezer-parser returns characters as numbers
             // so instead of strings, we usually want Array<number>
             type = "array"
@@ -1224,10 +1498,17 @@ function getOtherFunctions(state) {
   node = nextSibling(node)
   while (node) {
     if (node.type.name == "FunctionDefinition") {
+      printNode(node, state, "codegen 1200: FunctionDefinition")
       const funcNode = node
-      node = firstChild(node) // return type
+      node = firstChild(node) // return type or "inline"
+      if (node.type.name == "inline") {
+        node = nextSibling(node) // return type
+      }
+      printNode(node, state, "codegen 1200: return type")
       node = nextSibling(node) // FunctionDeclarator: "serialize(char *buffer)"
-      node = firstChild(node)
+      printNode(node, state, "codegen 1200: FunctionDeclarator")
+      node = firstChild(node) // FieldIdentifier
+      printNode(node, state, "codegen 1200: FieldIdentifier")
       const name = nodeText(node, state)
       if (
         state.ignoreScannerMethods.has(name) == false &&
@@ -1276,7 +1557,8 @@ export async function lintCode(code, eslintConfig) {
     const ms = new MagicString(code)
     // @ts-ignore Value of type 'typeof LineColumnFinder' is not callable.
     const finder = lineColumn(code)
-    //console.log(result) // debug: print ugly code
+    console.error("ugly result code:")
+    console.error(code)
     for (const msg of lintResults[0].messages) {
       const idx = finder.toIndex(msg.line, msg.column)
       // debug

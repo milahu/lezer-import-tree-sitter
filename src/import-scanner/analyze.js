@@ -4,6 +4,8 @@
 import { firstChild, nextSibling, getParent, nodeText, findNode, filterNodes,
   reduceNodes, filterChildNodes } from './lezer-tree-query.js'
 
+import { humanFormatNode, printNode, exitNode } from './lezer-tree-format.js'
+
 /**
  * analyze tree, populate state
  * @param {Tree} tree
@@ -12,6 +14,9 @@ import { firstChild, nextSibling, getParent, nodeText, findNode, filterNodes,
  */
 
 export function analyze(tree, state) {
+
+  state.languageName = state.grammar.name // TODO better? camelCase? PascalCase?
+  state.languageNameUpper = state.grammar.name.toUpperCase().replace(/[^A-Z0-9]+/g, "_")
 
   state.externalNames = state.grammar.externals.map(external => {
     if (external.type == "SYMBOL") {
@@ -96,19 +101,29 @@ export function analyze(tree, state) {
 
 
 
+  //printNode(state.scannerStructNode, state, "state.scannerStructNode")
+
   // find the Scanner.scan function
+  // FIXME the generic entrypoint is tree_sitter_${state.languageName}_external_scanner_scan
+  // Scanner::scan is just a weak convention
   state.scanFuncNode = findNode(state.scannerStructNode, (node) => {
     if (node.type.name != "FunctionDefinition") {
       return false
     }
+    //printNode(node, state, "FunctionDefinition")
+
     node = firstChild(node)
-    // returntype
+    if (!node) return false;
     //printNode(node, state, "returntype")
+
     node = nextSibling(node)
-    // FunctionDeclarator
-    //printNode(node, state, "TypeIdentifier")
+    if (!node) return false;
+    //printNode(node, state, "FunctionDeclarator")
+
     node = firstChild(node)
-    // FieldIdentifier
+    if (!node) return false;
+    //printNode(node, state, "FieldIdentifier")
+
     const name = nodeText(node, state)
     return (name == "scan")
   })
@@ -215,13 +230,39 @@ export function analyze(tree, state) {
       const type = nodeText(node, state)
       node = nextSibling(node)
       const name = nodeText(node, state)
-      if (type == "string") {
+      // TODO char* (C string)?
+      if (type == "std::string" || type == "string") {
         state.convertStringToArrayNames.add(name)
       }
       const value = ""; // TODO use actual init value if exists
       return { type, name, value }
     }
   )
+
+
+
+  // parse global defines
+
+  // example:
+  // #define DEBUG false
+  // #define DEBUG_LOOPS false
+  // #define DEADLOOP_MAX 30
+
+  state.globalDefines = reduceNodes(tree, (/** @type {Record<string, string>} */ acc, node) => {
+    if (node.type.name == "PreprocDirective") {
+      node = firstChild(node)
+      if (nodeText(node, state) == "#define") {
+        const keyNode = nextSibling(node, state)
+        const valNode = nextSibling(keyNode, state)
+        const key = nodeText(keyNode, state)
+        const val = nodeText(valNode, state).trim()
+        acc[key] = val
+      }
+    }
+    return acc
+  }, {})
+
+
 
   //console.dir({state.scannerStateVars})
   //process.exit()

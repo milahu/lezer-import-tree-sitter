@@ -35,6 +35,8 @@ import { analyze } from "./import-scanner/analyze.js"
 import { getCode, minifyCode, lintCode, formatCode, formatNode } from "./import-scanner/codegen.js"
 import { printNode, exitNode } from './import-scanner/lezer-tree-format.js'
 
+// based on lezer-parser-nix/src/format-error-context.js
+import { formatErrorContext } from "./format-error-context.js"
 
 
 // FIXME terser fails to remove some dead code
@@ -68,6 +70,10 @@ const terserConfig = {
     switches: true, // de-duplicate and remove unreachable switch branches
     passes: 10, // maximum number of times to run compress
     inline: true, // inline calls to function with simple/return statement
+    //comments: "all", // FIXME this breaks "evaluate":
+    // variable_operator.push(...[next_char]); // actual
+    // variable_operator.push(next_char); // expected
+    // workaround: use jsdoc comments in commentBlock? /** ... */ instead of /* ... */
     /*
     booleans_as_integers: false, // false -> 0, true -> 1
     toplevel: true, // drop unreferenced functions ("funcs") and/or variables ("vars") in the top level scope (false by default, true to drop both unreferenced functions and variables)
@@ -179,7 +185,21 @@ const scannerSource = readFileSync(process.argv[2], "utf8")
 const grammarSource = readFileSync(process.argv[3], "utf8")
 const grammar = JSON.parse(grammarSource)
 
-var tree = parser.parse(scannerSource)
+var tree = null;
+try {
+  tree = parser.parse(scannerSource)
+}
+catch (error) {
+  if (error instanceof SyntaxError) {
+    console.log("mkay")
+    var match = error.message.match(/^No parse at ([0-9]+)$/);
+    if (match) {
+      const errorIndex = parseInt(match[1]);
+      error.message += "\n" + formatErrorContext(scannerSource, errorIndex);
+    }
+  }
+  throw error;
+}
 
 const state = {
   source: scannerSource,
@@ -202,15 +222,27 @@ state.asciiNames["-1"] = "end" // lezer-parser
 
 state.tokenNamePrefix = state.tokensObjectName + "."
 
+// debug: parse and exit
+//printNode(tree, state); return
+
 // static analysis
 analyze(tree, state)
+//console.error(`import-scanner.js: state.convertStringToArrayNames = ${state.convertStringToArrayNames}`)
+
+// debug: analyze and exit
+//console.dir(state.scannerStateVars); return
 
 // codegen
 //let code = tree.topNode.type.format(tree.topNode, state) // too generic
 let code = getCode(tree, state)
-code = await minifyCode(code, terserConfig) // remove dead code
-code = await lintCode(code, eslintConfig)
-code = formatCode(code, prettierConfig)
+
+const returnRawCode = false
+
+if (!returnRawCode) {
+  code = await minifyCode(code, terserConfig) // remove dead code
+  code = await lintCode(code, eslintConfig)
+  code = formatCode(code, prettierConfig)
+}
 
 // output
 console.log(code)

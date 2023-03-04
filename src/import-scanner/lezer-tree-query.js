@@ -15,7 +15,7 @@ export function printNode(node, state, env, options = {}) {
   // note: this will print a trailing newline
   //console.log(node.toString(0, 5, "  ", extraDepth));
   const nodeSource = state.source.slice(node.from, node.to)
-  console.log((label ? (label + ': ') : '') + `${node.type.name}: ${nodeSource}`);
+  console.error((label ? (label + ': ') : '') + `${node.type.name}: ${nodeSource}`);
 }
 
 
