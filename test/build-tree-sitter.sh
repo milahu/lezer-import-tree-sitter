@@ -21,10 +21,11 @@ do
 echo
 echo "test case: $dir"
 name=$(basename "$dir")
+name_snake=$(echo -n "$name" | tr - _)
 
 pushd "$dir/tree-sitter-$name/"
 
-f=build/Release/tree_sitter_${name}_binding.node
+f=build/Release/tree_sitter_${name_snake}_binding.node
 if [ -e $f ]
 then
   echo "skipping build because bindings exist: $dir/tree-sitter-$name/$f"
