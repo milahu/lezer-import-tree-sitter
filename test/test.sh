@@ -37,6 +37,8 @@ d="$dir/lezer-parser-$name/src/scanner.js"
 echo "importing $c to $d"
 echo "node $import_scanner_js $c $a >$d"
 node "$import_scanner_js" "$c" "$a" >"$d"
+scanner_size=$(stat -c %s "$d")
+if [[ "$scanner_size" == 0 ]]; then rm "$d"; fi
 done
 
 done
