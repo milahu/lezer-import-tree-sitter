@@ -2,3 +2,6 @@
 	path = test/cases/make/tree-sitter-make
 	url = https://github.com/milahu/tree-sitter-make
 	branch = add-argument-parsing
+[submodule "src/lezer-parser-cpp"]
+	path = src/lezer-parser-cpp
+	url = https://github.com/lezer-parser/cpp
