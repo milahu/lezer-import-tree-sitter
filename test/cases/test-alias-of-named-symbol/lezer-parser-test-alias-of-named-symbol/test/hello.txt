@@ -1,0 +1,10 @@
+# hello node
+a (b) c
+==>
+Document (
+  Word,
+  ParensWord (
+    WordInParens
+  ),
+  Word
+)

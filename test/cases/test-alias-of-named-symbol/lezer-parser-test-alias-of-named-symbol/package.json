@@ -1,0 +1,33 @@
+{
+  "name": "lezer-parser-test-alias-of-named-symbol",
+  "version": "0.0.1",
+  "description": "Lezer grammar for the test-alias-of-named-symbol language",
+  "main": "dist/index.cjs",
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "import": "./dist/index.js",
+    "require": "./dist/index.cjs"
+  },
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "devDependencies": {
+    "@lezer/common": "^1.0.1",
+    "@lezer/generator": "^1.1.1",
+    "@rollup/plugin-node-resolve": "^14.1.0",
+    "mocha": "^10.0.0",
+    "rollup": "^2.79.0"
+  },
+  "dependencies": {
+    "@lezer/lr": "^1.2.3"
+  },
+  "scripts": {
+    "build": "lezer-generator src/grammar.lezer -o src/parser && rollup -c",
+    "build-debug": "lezer-generator src/grammar.lezer --names -o src/parser && rollup -c",
+    "prepare": "npm run build",
+    "test": "mocha --experimental-modules test/test-*.js",
+    "on-change": "npm run build && npm run test",
+    "watch": "git ls-files | entr npm run on-change"
+  }
+}
