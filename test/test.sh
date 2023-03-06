@@ -28,7 +28,10 @@ echo "importing $a to $b"
 echo "node $import_js $a >$b"
 node "$import_js" "$a" >"$b"
 
-for c in "$dir/tree-sitter-$name/src"/scanner.[cC]*
+scanner_file=$(find "$dir/tree-sitter-$name/src" -mindepth 1 -maxdepth 1 \
+  -regextype posix-extended -regex ".*/scanner\.(c|cc|cpp|cxx|c\+\+|C)")
+
+for c in $scanner_file
 do
 d="$dir/lezer-parser-$name/src/scanner.js"
 echo "importing $c to $d"
