@@ -68,7 +68,7 @@ export function analyze(tree, state) {
   }, [])
 
   if (state.tokenTypeNames.length == 0) {
-    throw new Error("not found token type names")
+    return
   }
 
   //console.dir({state.tokenTypeNames})

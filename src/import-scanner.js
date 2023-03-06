@@ -229,6 +229,11 @@ state.tokenNamePrefix = state.tokensObjectName + "."
 analyze(tree, state)
 //console.error(`import-scanner.js: state.convertStringToArrayNames = ${state.convertStringToArrayNames}`)
 
+if (state.tokenTypeNames.length == 0) {
+  console.error("import-scanner: no external tokens")
+  return
+}
+
 // debug: analyze and exit
 //console.dir(state.scannerStateVars); return
 
