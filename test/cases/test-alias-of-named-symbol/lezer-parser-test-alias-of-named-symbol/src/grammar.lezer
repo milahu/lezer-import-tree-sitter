@@ -1,0 +1,19 @@
+@top Document {
+  (Word | ParensWord)*
+}
+
+ParensWord {
+  "(" WordInParens { word1 } ")"
+}
+
+@skip { token_1 }
+
+@tokens {
+  token_1 {
+    $[ \t\r\n]
+  }
+  Word { word1 }
+  word1 {
+    $[a-z]+
+  }
+}
