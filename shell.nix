@@ -22,6 +22,7 @@ tree-sitter
 _nodejs
 _nodejs.pkgs.node-gyp
 clang_15 # clang -fsyntax-only -Xclang -ast-dump=json -Xclang -ast-dump-filter=some_function some_source.cc
+antlr4
 ];
 
 }
