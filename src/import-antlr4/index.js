@@ -1,5 +1,8 @@
 /*
 
+similar tool:
+https://github.com/eatkins/tree-sitter-ebnf-generator/blob/master/src/lua/parse_grammar.lua
+
 https://github.com/antlr/antlr4/blob/master/doc/javascript-target.md
 
 generate parser:
@@ -52,7 +55,7 @@ import {readFileSync} from "fs"
 import {parser as lezerCpp} from "@lezer/cpp"
 //import {getAsciiNames} from "./ascii-constants.js"
 import { analyze } from "./analyze.js"
-import { getCode, minifyCode, lintCode, formatCode, formatNode } from "./codegen.js"
+import { getCode, formatNode } from "./codegen.js"
 import { printNode, exitNode } from './format.js'
 
 // based on lezer-parser-nix/src/format-error-context.js
