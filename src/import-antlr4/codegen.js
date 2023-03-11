@@ -75,6 +75,15 @@ const transpileOfNodeType = {
   ParserRuleSpecContext(node, state) {
     printNode(node, state)
     throw Error("TODO")
+    //const nameNode = firstChild(node) // TODO
+    const ruleBlockContext = firstChild(node)
+    const exceptionGroupContext = nextSibling(ruleBlockContext)
+    if (nodeText(exceptionGroupContext, state) != "") {
+      return (
+        "// FIXME node with exceptionGroupContext\n" +
+        todoNode(node, state)
+      )
+    }
   },
 }
 

@@ -29,7 +29,7 @@ export function printNode(node, state, env, options = {}) {
 
 /** @type {function(SyntaxNode): SyntaxNode|null} */
 function skipComments(node) {
-  //return node; // noop
+  return node; // noop
   //checkInfiniteLoop();
   while (
     node && (
@@ -65,11 +65,6 @@ export function firstChild(node) {
     return null;
   }
   //console.log(`firstChild(${nodeType(startNode)} ${startNode.start?.start}-${startNode.stop?.stop}) -> ${node.start?.start}-${node.stop?.stop}`);
-  if (!node.start?.start) {
-    //console.log(`firstChild(${nodeType(startNode)} ${startNode.start?.start}-${startNode.stop?.stop}) -> null (no location)`);
-    throw Error("fixme: no location")
-    //console.log(`firstChild: node:`, node);
-  }
   return node;
 }
 
@@ -95,12 +90,6 @@ export function nextSibling(node) {
   }
   //console.log(`nextSibling:`, node);
   //console.log(`nextSibling(${nodeType(startNode)} ${startNode.start?.start}-${startNode.stop?.stop}) -> ${node.start?.start}-${node.stop?.stop}`);
-  if (!node.start?.start) {
-    //console.log(`nextSibling(${nodeType(startNode)} ${startNode.start?.start}-${startNode.stop?.stop}) -> null (no location)`);
-    throw Error("fixme: no location")
-    //console.log(`nextSibling: node:`, node);
-    return null;
-  }
   return node;
 }
 
@@ -124,10 +113,7 @@ export function getParent(node) {
 
 /** @type {function(SyntaxNode, State): string} */
 export function nodeText(node, state) {
-  // source = full source code of the Nix file
-  // text = source code of this node
-  //console.dir({ start: node.start, stop: node.stop })
-  return state.source.slice(node.start.start, node.stop.stop);
+  return node.getText()
 }
 
 
