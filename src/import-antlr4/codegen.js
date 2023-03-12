@@ -207,7 +207,7 @@ const transpileOfNodeType = {
           const lccText  = nodeText(lcc, state)
           if (lccText == "->skip") {
             state.lexerSkipRules.add(ruleName)
-            ruleBody += commentLines(nodeText(node, state, "skip token"))
+            //ruleBody += commentLines(nodeText(node, state), "skip token")
             ruleBody += formatNode(lec, state)
           }
           else if (lccText == "->channel(HIDDEN)") {
