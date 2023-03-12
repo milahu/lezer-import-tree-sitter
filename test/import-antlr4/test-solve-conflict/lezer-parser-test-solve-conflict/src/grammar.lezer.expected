@@ -1,0 +1,36 @@
+@precedence {
+  muldiv @left,
+  addsub @left
+}
+
+@top prog {
+  expr
+}
+
+expr {
+  expr !muldiv (
+    '*' |
+    '/'
+  ) expr |
+  expr !addsub (
+    '+' |
+    '-'
+  ) expr |
+  INT |
+  '(' expr ')'
+}
+
+@tokens {
+
+  NEWLINE {
+    $[\r\n]+
+  }
+
+  INT {
+    $[0-9]+
+  }
+}
+
+@skip {
+  NEWLINE
+}
