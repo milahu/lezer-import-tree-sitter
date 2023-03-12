@@ -206,7 +206,7 @@ const transpileOfNodeType = {
         if (lcc) {
           const lccText  = nodeText(lcc, state)
           if (lccText == "->skip") {
-            state.lexerSkipRules.add(ruleName)
+            state.skipRules.add(ruleName)
             //ruleBody += commentLines(nodeText(node, state), "skip token")
             ruleBody += formatNode(lec, state)
           }
@@ -491,17 +491,23 @@ function formatLexerRules(state) {
   if (!state.lexerTree) {
     return "// no @tokens\n\n"
   }
-  state.lexerSkipRules = new Set()
+  //state.skipRules = new Set()
   let result = (
     "@tokens {\n\n" +
     indentBlock(formatNode(state.lexerTree, state)) +
     "\n}\n\n"
   )
-  if (Array.from(state.lexerSkipRules).length > 0) {
-    const body = Array.from(state.lexerSkipRules).join(",\n")
-    result += `@skip {\n${indentBlock(body)}\n}\n\n`
-  }
   return result
+}
+
+
+
+function formatSkipRules(state) {
+  if (Array.from(state.skipRules).length == 0) {
+    return ""
+  }
+  const body = Array.from(state.skipRules).join(",\n")
+  return `@skip {\n${indentBlock(body)}\n}\n\n`
 }
 
 
@@ -516,8 +522,11 @@ function trimLinesEnd(s) {
 
 
 export function getCode(state) {
+  state.skipRules = new Set()
   return trimLinesEnd(
     formatNode(state.tree, state) +
-    formatLexerRules(state)
+    formatLexerRules(state) +
+    formatSkipRules(state) +
+    ""
   ).trimEnd()
 }
