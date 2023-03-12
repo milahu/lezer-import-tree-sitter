@@ -297,6 +297,11 @@ const transpileOfNodeType = {
         throw new Error(`expected regex character-class [...] in node:\n${nodeText(node, state)}`)
       }
       // add "$" prefix for lezer
+      // https://lezer.codemirror.net/docs/guide/#tokens
+      // $[a-z] matches a, z, and any character that ... comes between them.
+      // To create an inverted character set, ...
+      // you write an exclamation mark rather than a dollar sign before the brackets.
+      // So ![x] matches any character that is not x.
       return (
         //"// converted regex character-class:\n" +
         "$" + result
