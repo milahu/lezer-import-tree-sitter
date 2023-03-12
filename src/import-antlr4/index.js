@@ -14,8 +14,21 @@ antlr4/ANTLRv4Lexer.js
 antlr4/ANTLRv4Parser.js
 antlr4/ANTLRv4ParserListener.js
 
+// test/import-antlr4/cpp/lezer-parser-cpp/src/grammar.lezer
+// FIXME? convert to external scanner
+Rawstring {
+  'R"' (
+    (
+
+// test/import-antlr4/cpp/lezer-parser-cpp/src/grammar.lezer
+// FIXME? convert to external scanner
+BlockComment {
+  '/*' .*? '*\/'
+}
+
 */
 
+// FIXME comments are missing in the parse tree
 import antlr4 from 'antlr4';
 import ANTLRv4Lexer from './antlr/ANTLRv4Lexer.js';
 import ANTLRv4Parser from './antlr/ANTLRv4Parser.js';
