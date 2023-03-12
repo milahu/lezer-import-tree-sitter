@@ -489,7 +489,7 @@ export function formatNode(node, state) {
 
 function formatLexerRules(state) {
   if (!state.lexerTree) {
-    return "// no @tokens\n\n"
+    return ""
   }
   //state.skipRules = new Set()
   let result = (
