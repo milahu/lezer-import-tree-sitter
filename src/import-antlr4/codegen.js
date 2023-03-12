@@ -108,7 +108,7 @@ function copyNodeSpace(node, state) {
 
 function indentBlock(s) {
   const step = "  "
-  return step + s.replace(/\n/g, ("\n" + step))
+  return step + s.replace(/\n/g, ("\n" + step)).trimEnd()
 }
 
 
@@ -519,5 +519,5 @@ export function getCode(state) {
   return trimLinesEnd(
     formatNode(state.tree, state) +
     formatLexerRules(state)
-  )
+  ).trimEnd()
 }

@@ -972,7 +972,6 @@ pureSpecifier {
   Assign val { OctalLiteral }
   /// @ActionBlock {if($val.text.compareTo("0")!=0) throw new InputMismatchException(this);
   /// @ActionBlock 		}
-
 }
 
 baseClause {
@@ -2027,8 +2026,6 @@ literal {
     /// @TODO verify negation
     ![\r\n] *
   }
-
-
 }
 
 @skip {
@@ -2037,5 +2034,3 @@ literal {
   BlockComment,
   LineComment
 }
-
-
