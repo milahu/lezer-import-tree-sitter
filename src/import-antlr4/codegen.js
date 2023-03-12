@@ -507,16 +507,16 @@ function formatLexerRules(state) {
 
 
 // remove trailing whitespace from every line
-// String#trimRight and String#trimEnd trim only the last line
+// String#trimEnd trims only the last line
 // "\s+" would remove empty lines
-function trimLinesRight(s) {
+function trimLinesEnd(s) {
   return s.replace(/[ \t]+$/gm, "")
 }
 
 
 
 export function getCode(state) {
-  return trimLinesRight(
+  return trimLinesEnd(
     formatNode(state.tree, state) +
     formatLexerRules(state)
   )
