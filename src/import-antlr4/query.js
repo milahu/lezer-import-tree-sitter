@@ -75,6 +75,7 @@ export function nextSibling(node) {
   if (!node) return null;
   const startNode = node
   const parent = node.parentCtx
+  //if (!parent) return null;
   const index = parent.children.indexOf(node)
   const nextIndex = index + 1
   //if (!(node = node.nextSibling)) {
@@ -99,6 +100,7 @@ export function nextSibling(node) {
 export function getParent(node) {
   if (!node) return null;
   const startNode = node
+  //if (!node.parentCtx || !node.parentCtx.start) {
   if (!node.parentCtx.start) {
     // node is root node
     //console.log(`getParent(${nodeType(startNode)} ${startNode.start?.start}-${startNode.stop?.stop}) -> null`);

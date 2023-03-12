@@ -159,6 +159,75 @@ const transpileOfNodeType = {
     const ruleBody = formatNode(ruleBlockContext, state)
     return `${rulePrefix}${ruleName} {\n${indentBlock(ruleBody)}\n}\n\n`
   },
+  LexerRuleSpecContext(node, state) {
+    /*
+    return todoNode(node, state)
+    printNode(node, state)
+    throw Error("TODO")
+    */
+    //printNode(node, state, "LexerRuleSpecContext")
+    const firstNode = node // LexerRuleSpecContext
+    node = firstChild(node) // ruleName or "fragment"
+    if (nodeText(node, state) == "fragment") {
+      // TODO handle fragment?
+      // for now, just print a normal lexer rule
+      // maybe rename the rule to `fragment_${ruleName}`
+      node = nextSibling(node) // ruleName
+    }
+    const ruleName = nodeText(node, state)
+    node = nextSibling(node) // ":"
+    node = nextSibling(node) // LexerRuleBlockContext
+    if (nodeText(nextSibling(node), state) != ";") {
+      throw new Error(`assertion error: node child-sibling-sibling has no nextSibling ";" in LexerRuleSpecContext:\n${todoNode(firstNode, state)}`)
+    }
+    node = firstChild(node) // LexerAltListContext
+    if (nextSibling(node)) {
+      throw new Error(`assertion error: node child-sibling-sibling-child has nextSibling in LexerRuleSpecContext:\n${todoNode(firstNode, state)}`)
+    }
+    node = firstChild(node) // LexerAltContext
+    let ruleBody = ""
+    let childIdx = 0
+    while (node) {
+      if (node.constructor.name == "c") {
+        if (nodeText(node, state) != "|") {
+          throw new Error(`assertion error: c-node between LexerAltContext is not "|" in LexerRuleSpecContext:\n${todoNode(firstNode, state)}`)
+        }
+        ruleBody += "|\n"
+      }
+      else {
+        const lec = firstChild(node) // LexerElementsContext
+        const lcc = nextSibling(lec) // LexerCommandsContext
+        //printNode(node, state, "node")
+        //printNode(lec, state, "lec")
+        //printNode(lcc, state, "lcc")
+        if (nextSibling(lcc)) {
+          throw new Error(`assertion error: node lcc ${childIdx} has nextSibling in LexerRuleSpecContext:\n${todoNode(firstNode, state)}`)
+        }
+        if (lcc) {
+          const lccText  = nodeText(lcc, state)
+          if (lccText == "->skip") {
+            state.lexerSkipRules.add(ruleName)
+            ruleBody += commentLines(nodeText(node, state, "skip token"))
+            ruleBody += formatNode(lec, state)
+          }
+          else if (lccText == "->channel(HIDDEN)") {
+            ruleBody += commentLines(nodeText(node, state), `TODO hidden token`)
+            ruleBody += formatNode(lec, state)
+          }
+          // TODO what is "->channel(HIDDEN)"
+          else {
+            ruleBody += todoNode(node, state)
+          }
+        }
+        else {
+          ruleBody += formatNode(lec, state)
+        }
+        childIdx++
+      }
+      node = nextSibling(node) // LexerAltContext
+    }
+    return `${ruleName} {\n${indentBlock(ruleBody)}\n}\n\n`
+  },
   RuleAltListContext(node, state) {
     node = firstChild(node)
     let result = ""
@@ -218,6 +287,20 @@ const transpileOfNodeType = {
     if (result == "EOF") {
       // ignore the explicit "EOF" token in the top node
       return ""
+    }
+    return result
+  },
+  LexerAtomContext(node, state) {
+    const result = unwrapNode(node, state)
+    if (result[0] == "[") {
+      if (result[result.length - 1] != "]") {
+        throw new Error(`expected regex character-class [...] in node:\n${nodeText(node, state)}`)
+      }
+      // add "$" prefix for lezer
+      return (
+        //"// converted regex character-class:\n" +
+        "$" + result
+      )
     }
     return result
   },
@@ -296,6 +379,15 @@ transpileOfNodeType.BlockSuffixContext = unwrapNode
 
 // example: identifier of ActionBlock
 transpileOfNodeType.IdentifierContext = unwrapNode
+
+//transpileOfNodeType.LexerRuleBlockContext = unwrapNode
+transpileOfNodeType.LexerAltListContext = transpileOfNodeType.RuleAltListContext
+transpileOfNodeType.LexerAltContext = unwrapNode // 1 or 2 children: LexerElementsContext [LexerCommandsContext]
+transpileOfNodeType.LexerBlockContext = transpileOfNodeType.BlockContext
+transpileOfNodeType.LexerElementsContext = unwrapNode
+transpileOfNodeType.LexerElementContext = (n, s) => unwrapNode(n, s) + " " // add trailing space
+//transpileOfNodeType.LexerAtomContext = unwrapNode // can be regex
+//transpileOfNodeType.TerminalContext = unwrapNode
 
 
 /*
@@ -390,6 +482,37 @@ export function formatNode(node, state) {
 
 
 
-export function getCode(tree, state) {
-  return formatNode(tree, state)
+function formatLexerRules(state) {
+  if (!state.lexerTree) {
+    return "// no @tokens\n\n"
+  }
+  state.lexerSkipRules = new Set()
+  let result = (
+    "@tokens {\n\n" +
+    indentBlock(formatNode(state.lexerTree, state)) +
+    "\n}\n\n"
+  )
+  if (Array.from(state.lexerSkipRules).length > 0) {
+    const body = Array.from(state.lexerSkipRules).join(",\n")
+    result += `@skip {\n${indentBlock(body)}\n}\n\n`
+  }
+  return result
+}
+
+
+
+// remove trailing whitespace from every line
+// String#trimRight and String#trimEnd trim only the last line
+// "\s+" would remove empty lines
+function rightTrim(s) {
+  return s.replace(/[ \t]+$/gm, "")
+}
+
+
+
+export function getCode(state) {
+  return (
+    formatNode(state.tree, state) +
+    formatLexerRules(state)
+  )
 }

@@ -113,10 +113,14 @@ const tree = parser[topRule]()
 // lexer has no topRule, just a flat list of rules -> lexerParser.ruleNames
 let lexerSource = null
 let lexerParser = null
-const lexerSourcePath = process.argv[2]
+let lexerTree = null
+const lexerSourcePath = process.argv[3]
 if (lexerSourcePath) {
   lexerSource = readFileSync(lexerSourcePath, "utf8")
   lexerParser = getParser(lexerSource)
+  lexerParser.buildParseTrees = true
+  const topRule = "grammarSpec"
+  lexerTree = lexerParser[topRule]()
 }
 
 //console.log(tree)
@@ -127,11 +131,12 @@ const state = {
   tree,
   lexerSourcePath,
   lexerSource,
-  lexerParser,
+  lexerParser, // TODO remove?
+  lexerTree,
 }
 
 // static analysis
-const analyzeDone = analyze(tree, state)
+const analyzeDone = analyze(state)
 
 if (analyzeDone === false) {
   return
@@ -142,7 +147,7 @@ if (analyzeDone === false) {
 
 // codegen
 //let code = tree.topNode.type.format(tree.topNode, state) // too generic
-let code = getCode(tree, state)
+let code = getCode(state)
 
 // output
 console.log(code)

@@ -15,7 +15,7 @@ import { humanFormatNode, printNode, exitNode } from './format.js'
  * @return {void}
  */
 
-export function analyze(tree, state) {
+export function analyze(state) {
 
   /// @todo(GrammarSpecContext)   GrammarDeclContext: "parsergrammarCPP14Parser;"
   /// @todo(GrammarSpecContext)     GrammarTypeContext: "parsergrammar"

@@ -120,11 +120,11 @@ export function stringifyTree(tree, options) {
 /** @type {(node: SyntaxNode, state: any, label: string) => string} */
 //export function formatNode(node, state, label = "") {
 export function humanFormatNode(node, state, label = "") {
-  const s = stringifyTree(node, {
+  const s = node ? stringifyTree(node, {
     source: state.source,
     human: true,
     firstLine: true,
-  })
+  }) : String(node)
   if (label) {
     return s.split("\n").map(line => label + ": " + line).join("\n")
   }
