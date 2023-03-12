@@ -722,7 +722,7 @@ balancedtoken {
   LeftBracket balancedTokenSeq RightBracket |
   LeftBrace balancedTokenSeq RightBrace |
 
-  // TODO verify negation
+  /// @TODO verify negation
   !(
     LeftParen |
     RightParen |
@@ -1280,17 +1280,17 @@ literal {
     /// @TODO hidden token '#'(~[\n]*?'\\''\r'?'\n')+~[\n]+->channel(HIDDEN)
     '#' (
 
-      // TODO verify negation
+      /// @TODO verify negation
       ![\n] *? '\\' '\r'? '\n'
     )+
-    // TODO verify negation
+    /// @TODO verify negation
     ![\n] +
   }
 
   Directive {
     /// @TODO hidden token '#'~[\n]*->channel(HIDDEN)
     '#'
-    // TODO verify negation
+    /// @TODO verify negation
     ![\n] *
   }
 
@@ -1882,7 +1882,7 @@ literal {
 
   Cchar {
 
-    // TODO verify negation
+    /// @TODO verify negation
     !['\\\r\n]  |
     Escapesequence |
     Universalcharactername
@@ -1957,7 +1957,7 @@ literal {
 
   Schar {
 
-    // TODO verify negation
+    /// @TODO verify negation
     !["\\\r\n]  |
     Escapesequence |
     Universalcharactername
@@ -1969,16 +1969,16 @@ literal {
         '\\' $["()]
       ) |
 
-      // TODO verify negation
+      /// @TODO verify negation
       ![\r\n (]
     )*? '('
-    // TODO verify negation
+    /// @TODO verify negation
     ![)] *? ')' (
       (
         '\\' $["()]
       ) |
 
-      // TODO verify negation
+      /// @TODO verify negation
       ![\r\n "]
     )*? '"'
   }
@@ -2008,12 +2008,10 @@ literal {
   }
 
   Whitespace {
-    /// [ \t]+->skip
     $[ \t]+
   }
 
   Newline {
-    /// ('\r''\n'?|'\n')->skip
     (
       '\r' '\n'? |
       '\n'
@@ -2021,14 +2019,12 @@ literal {
   }
 
   BlockComment {
-    /// '/*'.*?'*/'->skip
     '/*' .*? '*/'
   }
 
   LineComment {
-    /// '//'~[\r\n]*->skip
     '//'
-    // TODO verify negation
+    /// @TODO verify negation
     ![\r\n] *
   }
 

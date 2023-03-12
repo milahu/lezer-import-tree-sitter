@@ -335,7 +335,7 @@ const transpileOfNodeType = {
     // use "!" to invert. TODO verify
     return (
       "\n" +
-      "// TODO verify negation\n" +
+      "/// @TODO verify negation\n" +
       `!${body}`
     )
   },
