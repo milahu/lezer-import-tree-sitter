@@ -226,7 +226,14 @@ const transpileOfNodeType = {
       }
       node = nextSibling(node) // LexerAltContext
     }
-    return `${ruleName} {\n${indentBlock(ruleBody)}\n}\n\n`
+    state.lexerRules.push({
+      ruleName,
+      ruleBody,
+    })
+    //return `${ruleName} {\n${indentBlock(ruleBody)}\n}\n\n`
+    // defer codegen to formatLexerRules
+    // TODO why?
+    return ""
   },
   RuleAltListContext(node, state) {
     node = firstChild(node)
@@ -352,7 +359,7 @@ const transpileOfNodeType = {
 
 transpileOfNodeType.c = copyNode // chars = anonymous string node
 
-transpileOfNodeType.GrammarDeclContext = ignoreNode
+transpileOfNodeType.GrammarDeclContext = ignoreNode // grammar name, TODO use in analyze
 transpileOfNodeType.PrequelConstructContext = ignoreNode // example: tokenVocab=CPP14Lexer
 
 transpileOfNodeType.RulesContext = unwrapNode
@@ -480,7 +487,7 @@ export function formatNode(node, state) {
     //throw new Error("not implemented: nodeType(node) = " + nodeType(node))
   }
   return (
-    (debug ? (commentBlock(nodeText(node, state).split("\n")[0], `source(${nodeType(node)})`)) : "") +
+    (debug ? ("\n" + commentLines(nodeText(node, state).split("\n")[0], `source(${nodeType(node)})`)) : "") +
     transpileOfNodeType[nodeType(node)](node, state)
   )
 }
@@ -488,15 +495,21 @@ export function formatNode(node, state) {
 
 
 function formatLexerRules(state) {
-  if (!state.lexerTree) {
-    return ""
+  if (state.lexerTree) {
+    // populate state.lexerRules
+    formatNode(state.lexerTree, state)
   }
-  //state.skipRules = new Set()
-  let result = (
-    "@tokens {\n\n" +
-    indentBlock(formatNode(state.lexerTree, state)) +
-    "\n}\n\n"
-  )
+  let result = ""
+  for (const {ruleName, ruleBody} of state.lexerRules) {
+    result += `${ruleName} {\n${indentBlock(ruleBody)}\n}\n\n`
+  }
+  if (result != "") {
+    result = (
+      "@tokens {\n\n" +
+      indentBlock(result) +
+      "\n}\n\n"
+    )
+  }
   return result
 }
 
@@ -523,6 +536,7 @@ function trimLinesEnd(s) {
 
 export function getCode(state) {
   state.skipRules = new Set()
+  state.lexerRules = []
   return trimLinesEnd(
     formatNode(state.tree, state) +
     formatLexerRules(state) +
