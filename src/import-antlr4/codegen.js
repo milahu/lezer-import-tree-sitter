@@ -511,7 +511,7 @@ function rightTrim(s) {
 
 
 export function getCode(state) {
-  return (
+  return rightTrim(
     formatNode(state.tree, state) +
     formatLexerRules(state)
   )

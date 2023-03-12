@@ -1,5 +1,5 @@
 @top translationUnit {
-  declarationseq?  
+  declarationseq?
 }
 
 primaryExpression {
@@ -7,12 +7,12 @@ primaryExpression {
   This |
   LeftParen expression RightParen |
   idExpression |
-  lambdaExpression 
+  lambdaExpression
 }
 
 idExpression {
   unqualifiedId |
-  qualifiedId 
+  qualifiedId
 }
 
 unqualifiedId {
@@ -22,122 +22,122 @@ unqualifiedId {
   literalOperatorId |
   Tilde (
     className |
-    decltypeSpecifier 
+    decltypeSpecifier
   ) |
-  templateId 
+  templateId
 }
 
 qualifiedId {
-  nestedNameSpecifier Template? unqualifiedId 
+  nestedNameSpecifier Template? unqualifiedId
 }
 
 nestedNameSpecifier {
   (
     theTypeName |
     namespaceName |
-    decltypeSpecifier 
+    decltypeSpecifier
   )? Doublecolon |
   nestedNameSpecifier (
     Identifier |
-    Template? simpleTemplateId 
-  ) Doublecolon 
+    Template? simpleTemplateId
+  ) Doublecolon
 }
 
 lambdaExpression {
-  lambdaIntroducer lambdaDeclarator? compoundStatement 
+  lambdaIntroducer lambdaDeclarator? compoundStatement
 }
 
 lambdaIntroducer {
-  LeftBracket lambdaCapture? RightBracket 
+  LeftBracket lambdaCapture? RightBracket
 }
 
 lambdaCapture {
   captureList |
   captureDefault (
-    Comma captureList 
-  )? 
+    Comma captureList
+  )?
 }
 
 captureDefault {
   And |
-  Assign 
+  Assign
 }
 
 captureList {
   capture (
-    Comma capture 
-  )* Ellipsis? 
+    Comma capture
+  )* Ellipsis?
 }
 
 capture {
   simpleCapture |
-  initcapture 
+  initcapture
 }
 
 simpleCapture {
   And? Identifier |
-  This 
+  This
 }
 
 initcapture {
-  And? Identifier initializer 
+  And? Identifier initializer
 }
 
 lambdaDeclarator {
-  LeftParen parameterDeclarationClause? RightParen Mutable? exceptionSpecification? attributeSpecifierSeq? trailingReturnType? 
+  LeftParen parameterDeclarationClause? RightParen Mutable? exceptionSpecification? attributeSpecifierSeq? trailingReturnType?
 }
 
 postfixExpression {
   primaryExpression |
   postfixExpression LeftBracket (
     expression |
-    bracedInitList 
+    bracedInitList
   ) RightBracket |
   postfixExpression LeftParen expressionList? RightParen |
   (
     simpleTypeSpecifier |
-    typeNameSpecifier 
+    typeNameSpecifier
   ) (
     LeftParen expressionList? RightParen |
-    bracedInitList 
+    bracedInitList
   ) |
   postfixExpression (
     Dot |
-    Arrow 
+    Arrow
   ) (
     Template? idExpression |
-    pseudoDestructorName 
+    pseudoDestructorName
   ) |
   postfixExpression (
     PlusPlus |
-    MinusMinus 
+    MinusMinus
   ) |
   (
     Dynamic_cast |
     Static_cast |
     Reinterpret_cast |
-    Const_cast 
+    Const_cast
   ) Less theTypeId Greater LeftParen expression RightParen |
   typeIdOfTheTypeId LeftParen (
     expression |
-    theTypeId 
-  ) RightParen 
+    theTypeId
+  ) RightParen
 }
 
 typeIdOfTheTypeId {
-  Typeid_ 
+  Typeid_
 }
 
 expressionList {
-  initializerList 
+  initializerList
 }
 
 pseudoDestructorName {
   nestedNameSpecifier? (
-    theTypeName Doublecolon 
+    theTypeName Doublecolon
   )? Tilde theTypeName |
   nestedNameSpecifier Template simpleTemplateId Doublecolon Tilde theTypeName |
-  Tilde decltypeSpecifier 
+  Tilde decltypeSpecifier
 }
 
 unaryExpression {
@@ -146,16 +146,16 @@ unaryExpression {
     PlusPlus |
     MinusMinus |
     unaryOperator |
-    Sizeof 
+    Sizeof
   ) unaryExpression |
   Sizeof (
     LeftParen theTypeId RightParen |
-    Ellipsis LeftParen Identifier RightParen 
+    Ellipsis LeftParen Identifier RightParen
   ) |
   Alignof LeftParen theTypeId RightParen |
   noExceptExpression |
   newExpression |
-  deleteExpression 
+  deleteExpression
 }
 
 unaryOperator {
@@ -165,63 +165,63 @@ unaryOperator {
   Plus |
   Tilde |
   Minus |
-  Not 
+  Not
 }
 
 newExpression {
   Doublecolon? New newPlacement? (
     newTypeId |
     (
-      LeftParen theTypeId RightParen 
-    ) 
-  ) newInitializer? 
+      LeftParen theTypeId RightParen
+    )
+  ) newInitializer?
 }
 
 newPlacement {
-  LeftParen expressionList RightParen 
+  LeftParen expressionList RightParen
 }
 
 newTypeId {
-  typeSpecifierSeq newDeclarator? 
+  typeSpecifierSeq newDeclarator?
 }
 
 newDeclarator {
   pointerOperator newDeclarator? |
-  noPointerNewDeclarator 
+  noPointerNewDeclarator
 }
 
 noPointerNewDeclarator {
   LeftBracket expression RightBracket attributeSpecifierSeq? |
-  noPointerNewDeclarator LeftBracket constantExpression RightBracket attributeSpecifierSeq? 
+  noPointerNewDeclarator LeftBracket constantExpression RightBracket attributeSpecifierSeq?
 }
 
 newInitializer {
   LeftParen expressionList? RightParen |
-  bracedInitList 
+  bracedInitList
 }
 
 deleteExpression {
   Doublecolon? Delete (
-    LeftBracket RightBracket 
-  )? castExpression 
+    LeftBracket RightBracket
+  )? castExpression
 }
 
 noExceptExpression {
-  Noexcept LeftParen expression RightParen 
+  Noexcept LeftParen expression RightParen
 }
 
 castExpression {
   unaryExpression |
-  LeftParen theTypeId RightParen castExpression 
+  LeftParen theTypeId RightParen castExpression
 }
 
 pointerMemberExpression {
   castExpression (
     (
       DotStar |
-      ArrowStar 
-    ) castExpression 
-  )* 
+      ArrowStar
+    ) castExpression
+  )*
 }
 
 multiplicativeExpression {
@@ -229,29 +229,29 @@ multiplicativeExpression {
     (
       Star |
       Div |
-      Mod 
-    ) pointerMemberExpression 
-  )* 
+      Mod
+    ) pointerMemberExpression
+  )*
 }
 
 additiveExpression {
   multiplicativeExpression (
     (
       Plus |
-      Minus 
-    ) multiplicativeExpression 
-  )* 
+      Minus
+    ) multiplicativeExpression
+  )*
 }
 
 shiftExpression {
   additiveExpression (
-    shiftOperator additiveExpression 
-  )* 
+    shiftOperator additiveExpression
+  )*
 }
 
 shiftOperator {
   Greater Greater |
-  Less Less 
+  Less Less
 }
 
 relationalExpression {
@@ -260,60 +260,60 @@ relationalExpression {
       Less |
       Greater |
       LessEqual |
-      GreaterEqual 
-    ) shiftExpression 
-  )* 
+      GreaterEqual
+    ) shiftExpression
+  )*
 }
 
 equalityExpression {
   relationalExpression (
     (
       Equal |
-      NotEqual 
-    ) relationalExpression 
-  )* 
+      NotEqual
+    ) relationalExpression
+  )*
 }
 
 andExpression {
   equalityExpression (
-    And equalityExpression 
-  )* 
+    And equalityExpression
+  )*
 }
 
 exclusiveOrExpression {
   andExpression (
-    Caret andExpression 
-  )* 
+    Caret andExpression
+  )*
 }
 
 inclusiveOrExpression {
   exclusiveOrExpression (
-    Or exclusiveOrExpression 
-  )* 
+    Or exclusiveOrExpression
+  )*
 }
 
 logicalAndExpression {
   inclusiveOrExpression (
-    AndAnd inclusiveOrExpression 
-  )* 
+    AndAnd inclusiveOrExpression
+  )*
 }
 
 logicalOrExpression {
   logicalAndExpression (
-    OrOr logicalAndExpression 
-  )* 
+    OrOr logicalAndExpression
+  )*
 }
 
 conditionalExpression {
   logicalOrExpression (
-    Question expression Colon assignmentExpression 
-  )? 
+    Question expression Colon assignmentExpression
+  )?
 }
 
 assignmentExpression {
   conditionalExpression |
   logicalOrExpression assignmentOperator initializerClause |
-  throwExpression 
+  throwExpression
 }
 
 assignmentOperator {
@@ -327,17 +327,17 @@ assignmentOperator {
   LeftShiftAssign |
   AndAssign |
   XorAssign |
-  OrAssign 
+  OrAssign
 }
 
 expression {
   assignmentExpression (
-    Comma assignmentExpression 
-  )* 
+    Comma assignmentExpression
+  )*
 }
 
 constantExpression {
-  conditionalExpression 
+  conditionalExpression
 }
 
 statement {
@@ -349,43 +349,43 @@ statement {
     selectionStatement |
     iterationStatement |
     jumpStatement |
-    tryBlock 
-  ) 
+    tryBlock
+  )
 }
 
 labeledStatement {
   attributeSpecifierSeq? (
     Identifier |
     Case constantExpression |
-    Default 
-  ) Colon statement 
+    Default
+  ) Colon statement
 }
 
 expressionStatement {
-  expression? Semi 
+  expression? Semi
 }
 
 compoundStatement {
-  LeftBrace statementSeq? RightBrace 
+  LeftBrace statementSeq? RightBrace
 }
 
 statementSeq {
-  statement+ 
+  statement+
 }
 
 selectionStatement {
   If LeftParen condition RightParen statement (
-    Else statement 
+    Else statement
   )? |
-  Switch LeftParen condition RightParen statement 
+  Switch LeftParen condition RightParen statement
 }
 
 condition {
   expression |
   attributeSpecifierSeq? declSpecifierSeq declarator (
     Assign initializerClause |
-    bracedInitList 
-  ) 
+    bracedInitList
+  )
 }
 
 iterationStatement {
@@ -393,22 +393,22 @@ iterationStatement {
   Do statement While LeftParen expression RightParen Semi |
   For LeftParen (
     forInitStatement condition? Semi expression? |
-    forRangeDeclaration Colon forRangeInitializer 
-  ) RightParen statement 
+    forRangeDeclaration Colon forRangeInitializer
+  ) RightParen statement
 }
 
 forInitStatement {
   expressionStatement |
-  simpleDeclaration 
+  simpleDeclaration
 }
 
 forRangeDeclaration {
-  attributeSpecifierSeq? declSpecifierSeq declarator 
+  attributeSpecifierSeq? declSpecifierSeq declarator
 }
 
 forRangeInitializer {
   expression |
-  bracedInitList 
+  bracedInitList
 }
 
 jumpStatement {
@@ -417,18 +417,18 @@ jumpStatement {
     Continue |
     Return (
       expression |
-      bracedInitList 
+      bracedInitList
     )? |
-    Goto Identifier 
-  ) Semi 
+    Goto Identifier
+  ) Semi
 }
 
 declarationStatement {
-  blockDeclaration 
+  blockDeclaration
 }
 
 declarationseq {
-  declaration+ 
+  declaration+
 }
 
 declaration {
@@ -440,7 +440,7 @@ declaration {
   linkageSpecification |
   namespaceDefinition |
   emptyDeclaration |
-  attributeDeclaration 
+  attributeDeclaration
 }
 
 blockDeclaration {
@@ -451,28 +451,28 @@ blockDeclaration {
   usingDirective |
   staticAssertDeclaration |
   aliasDeclaration |
-  opaqueEnumDeclaration 
+  opaqueEnumDeclaration
 }
 
 aliasDeclaration {
-  Using Identifier attributeSpecifierSeq? Assign theTypeId Semi 
+  Using Identifier attributeSpecifierSeq? Assign theTypeId Semi
 }
 
 simpleDeclaration {
   declSpecifierSeq? initDeclaratorList? Semi |
-  attributeSpecifierSeq declSpecifierSeq? initDeclaratorList Semi 
+  attributeSpecifierSeq declSpecifierSeq? initDeclaratorList Semi
 }
 
 staticAssertDeclaration {
-  Static_assert LeftParen constantExpression Comma StringLiteral RightParen Semi 
+  Static_assert LeftParen constantExpression Comma StringLiteral RightParen Semi
 }
 
 emptyDeclaration {
-  Semi 
+  Semi
 }
 
 attributeDeclaration {
-  attributeSpecifierSeq Semi 
+  attributeSpecifierSeq Semi
 }
 
 declSpecifier {
@@ -481,11 +481,11 @@ declSpecifier {
   functionSpecifier |
   Friend |
   Typedef |
-  Constexpr 
+  Constexpr
 }
 
 declSpecifierSeq {
-  declSpecifier+? attributeSpecifierSeq? 
+  declSpecifier+? attributeSpecifierSeq?
 }
 
 storageClassSpecifier {
@@ -493,48 +493,48 @@ storageClassSpecifier {
   Static |
   Thread_local |
   Extern |
-  Mutable 
+  Mutable
 }
 
 functionSpecifier {
   Inline |
   Virtual |
-  Explicit 
+  Explicit
 }
 
 typedefName {
-  Identifier 
+  Identifier
 }
 
 typeSpecifier {
   trailingTypeSpecifier |
   classSpecifier |
-  enumSpecifier 
+  enumSpecifier
 }
 
 trailingTypeSpecifier {
   simpleTypeSpecifier |
   elaboratedTypeSpecifier |
   typeNameSpecifier |
-  cvQualifier 
+  cvQualifier
 }
 
 typeSpecifierSeq {
-  typeSpecifier+ attributeSpecifierSeq? 
+  typeSpecifier+ attributeSpecifierSeq?
 }
 
 trailingTypeSpecifierSeq {
-  trailingTypeSpecifier+ attributeSpecifierSeq? 
+  trailingTypeSpecifier+ attributeSpecifierSeq?
 }
 
 simpleTypeLengthModifier {
   Short |
-  Long 
+  Long
 }
 
 simpleTypeSignednessModifier {
   Unsigned |
-  Signed 
+  Signed
 }
 
 simpleTypeSpecifier {
@@ -552,176 +552,176 @@ simpleTypeSpecifier {
   simpleTypeLengthModifier? Double |
   Void |
   Auto |
-  decltypeSpecifier 
+  decltypeSpecifier
 }
 
 theTypeName {
   className |
   enumName |
   typedefName |
-  simpleTemplateId 
+  simpleTemplateId
 }
 
 decltypeSpecifier {
   Decltype LeftParen (
     expression |
-    Auto 
-  ) RightParen 
+    Auto
+  ) RightParen
 }
 
 elaboratedTypeSpecifier {
   classKey (
     attributeSpecifierSeq? nestedNameSpecifier? Identifier |
     simpleTemplateId |
-    nestedNameSpecifier Template? simpleTemplateId 
+    nestedNameSpecifier Template? simpleTemplateId
   ) |
-  Enum nestedNameSpecifier? Identifier 
+  Enum nestedNameSpecifier? Identifier
 }
 
 enumName {
-  Identifier 
+  Identifier
 }
 
 enumSpecifier {
   enumHead LeftBrace (
-    enumeratorList Comma? 
-  )? RightBrace 
+    enumeratorList Comma?
+  )? RightBrace
 }
 
 enumHead {
   enumkey attributeSpecifierSeq? (
-    nestedNameSpecifier? Identifier 
-  )? enumbase? 
+    nestedNameSpecifier? Identifier
+  )? enumbase?
 }
 
 opaqueEnumDeclaration {
-  enumkey attributeSpecifierSeq? Identifier enumbase? Semi 
+  enumkey attributeSpecifierSeq? Identifier enumbase? Semi
 }
 
 enumkey {
   Enum (
     Class |
-    Struct 
-  )? 
+    Struct
+  )?
 }
 
 enumbase {
-  Colon typeSpecifierSeq 
+  Colon typeSpecifierSeq
 }
 
 enumeratorList {
   enumeratorDefinition (
-    Comma enumeratorDefinition 
-  )* 
+    Comma enumeratorDefinition
+  )*
 }
 
 enumeratorDefinition {
   enumerator (
-    Assign constantExpression 
-  )? 
+    Assign constantExpression
+  )?
 }
 
 enumerator {
-  Identifier 
+  Identifier
 }
 
 namespaceName {
   originalNamespaceName |
-  namespaceAlias 
+  namespaceAlias
 }
 
 originalNamespaceName {
-  Identifier 
+  Identifier
 }
 
 namespaceDefinition {
   Inline? Namespace (
     Identifier |
-    originalNamespaceName 
-  )? LeftBrace namespaceBody { declarationseq }? RightBrace 
+    originalNamespaceName
+  )? LeftBrace namespaceBody { declarationseq }? RightBrace
 }
 
 namespaceAlias {
-  Identifier 
+  Identifier
 }
 
 namespaceAliasDefinition {
-  Namespace Identifier Assign qualifiednamespacespecifier Semi 
+  Namespace Identifier Assign qualifiednamespacespecifier Semi
 }
 
 qualifiednamespacespecifier {
-  nestedNameSpecifier? namespaceName 
+  nestedNameSpecifier? namespaceName
 }
 
 usingDeclaration {
   Using (
     (
-      Typename_? nestedNameSpecifier 
+      Typename_? nestedNameSpecifier
     ) |
-    Doublecolon 
-  ) unqualifiedId Semi 
+    Doublecolon
+  ) unqualifiedId Semi
 }
 
 usingDirective {
-  attributeSpecifierSeq? Using Namespace nestedNameSpecifier? namespaceName Semi 
+  attributeSpecifierSeq? Using Namespace nestedNameSpecifier? namespaceName Semi
 }
 
 asmDefinition {
-  Asm LeftParen StringLiteral RightParen Semi 
+  Asm LeftParen StringLiteral RightParen Semi
 }
 
 linkageSpecification {
   Extern StringLiteral (
     LeftBrace declarationseq? RightBrace |
-    declaration 
-  ) 
+    declaration
+  )
 }
 
 attributeSpecifierSeq {
-  attributeSpecifier+ 
+  attributeSpecifier+
 }
 
 attributeSpecifier {
   LeftBracket LeftBracket attributeList? RightBracket RightBracket |
-  alignmentspecifier 
+  alignmentspecifier
 }
 
 alignmentspecifier {
   Alignas LeftParen (
     theTypeId |
-    constantExpression 
-  ) Ellipsis? RightParen 
+    constantExpression
+  ) Ellipsis? RightParen
 }
 
 attributeList {
   attribute (
-    Comma attribute 
-  )* Ellipsis? 
+    Comma attribute
+  )* Ellipsis?
 }
 
 attribute {
   (
-    attributeNamespace Doublecolon 
-  )? Identifier attributeArgumentClause? 
+    attributeNamespace Doublecolon
+  )? Identifier attributeArgumentClause?
 }
 
 attributeNamespace {
-  Identifier 
+  Identifier
 }
 
 attributeArgumentClause {
-  LeftParen balancedTokenSeq? RightParen 
+  LeftParen balancedTokenSeq? RightParen
 }
 
 balancedTokenSeq {
-  balancedtoken+ 
+  balancedtoken+
 }
 
 balancedtoken {
   LeftParen balancedTokenSeq RightParen |
   LeftBracket balancedTokenSeq RightBracket |
   LeftBrace balancedTokenSeq RightBrace |
-  
+
   // TODO verify negation
   !(
     LeftParen |
@@ -729,136 +729,136 @@ balancedtoken {
     LeftBrace |
     RightBrace |
     LeftBracket |
-    RightBracket 
-  )+ 
+    RightBracket
+  )+
 }
 
 initDeclaratorList {
   initDeclarator (
-    Comma initDeclarator 
-  )* 
+    Comma initDeclarator
+  )*
 }
 
 initDeclarator {
-  declarator initializer? 
+  declarator initializer?
 }
 
 declarator {
   pointerDeclarator |
-  noPointerDeclarator parametersAndQualifiers trailingReturnType 
+  noPointerDeclarator parametersAndQualifiers trailingReturnType
 }
 
 pointerDeclarator {
   (
-    pointerOperator Const? 
-  )* noPointerDeclarator 
+    pointerOperator Const?
+  )* noPointerDeclarator
 }
 
 noPointerDeclarator {
   declaratorid attributeSpecifierSeq? |
   noPointerDeclarator (
     parametersAndQualifiers |
-    LeftBracket constantExpression? RightBracket attributeSpecifierSeq? 
+    LeftBracket constantExpression? RightBracket attributeSpecifierSeq?
   ) |
-  LeftParen pointerDeclarator RightParen 
+  LeftParen pointerDeclarator RightParen
 }
 
 parametersAndQualifiers {
-  LeftParen parameterDeclarationClause? RightParen cvqualifierseq? refqualifier? exceptionSpecification? attributeSpecifierSeq? 
+  LeftParen parameterDeclarationClause? RightParen cvqualifierseq? refqualifier? exceptionSpecification? attributeSpecifierSeq?
 }
 
 trailingReturnType {
-  Arrow trailingTypeSpecifierSeq abstractDeclarator? 
+  Arrow trailingTypeSpecifierSeq abstractDeclarator?
 }
 
 pointerOperator {
   (
     And |
-    AndAnd 
+    AndAnd
   ) attributeSpecifierSeq? |
-  nestedNameSpecifier? Star attributeSpecifierSeq? cvqualifierseq? 
+  nestedNameSpecifier? Star attributeSpecifierSeq? cvqualifierseq?
 }
 
 cvqualifierseq {
-  cvQualifier+ 
+  cvQualifier+
 }
 
 cvQualifier {
   Const |
-  Volatile 
+  Volatile
 }
 
 refqualifier {
   And |
-  AndAnd 
+  AndAnd
 }
 
 declaratorid {
-  Ellipsis? idExpression 
+  Ellipsis? idExpression
 }
 
 theTypeId {
-  typeSpecifierSeq abstractDeclarator? 
+  typeSpecifierSeq abstractDeclarator?
 }
 
 abstractDeclarator {
   pointerAbstractDeclarator |
   noPointerAbstractDeclarator? parametersAndQualifiers trailingReturnType |
-  abstractPackDeclarator 
+  abstractPackDeclarator
 }
 
 pointerAbstractDeclarator {
   noPointerAbstractDeclarator |
-  pointerOperator+ noPointerAbstractDeclarator? 
+  pointerOperator+ noPointerAbstractDeclarator?
 }
 
 noPointerAbstractDeclarator {
   noPointerAbstractDeclarator (
     parametersAndQualifiers |
-    noPointerAbstractDeclarator LeftBracket constantExpression? RightBracket attributeSpecifierSeq? 
+    noPointerAbstractDeclarator LeftBracket constantExpression? RightBracket attributeSpecifierSeq?
   ) |
   parametersAndQualifiers |
   LeftBracket constantExpression? RightBracket attributeSpecifierSeq? |
-  LeftParen pointerAbstractDeclarator RightParen 
+  LeftParen pointerAbstractDeclarator RightParen
 }
 
 abstractPackDeclarator {
-  pointerOperator* noPointerAbstractPackDeclarator 
+  pointerOperator* noPointerAbstractPackDeclarator
 }
 
 noPointerAbstractPackDeclarator {
   noPointerAbstractPackDeclarator (
     parametersAndQualifiers |
-    LeftBracket constantExpression? RightBracket attributeSpecifierSeq? 
+    LeftBracket constantExpression? RightBracket attributeSpecifierSeq?
   ) |
-  Ellipsis 
+  Ellipsis
 }
 
 parameterDeclarationClause {
   parameterDeclarationList (
-    Comma? Ellipsis 
-  )? 
+    Comma? Ellipsis
+  )?
 }
 
 parameterDeclarationList {
   parameterDeclaration (
-    Comma parameterDeclaration 
-  )* 
+    Comma parameterDeclaration
+  )*
 }
 
 parameterDeclaration {
   attributeSpecifierSeq? declSpecifierSeq (
     (
       declarator |
-      abstractDeclarator? 
+      abstractDeclarator?
     ) (
-      Assign initializerClause 
-    )? 
-  ) 
+      Assign initializerClause
+    )?
+  )
 }
 
 functionDefinition {
-  attributeSpecifierSeq? declSpecifierSeq? declarator virtualSpecifierSeq? functionBody 
+  attributeSpecifierSeq? declSpecifierSeq? declarator virtualSpecifierSeq? functionBody
 }
 
 functionBody {
@@ -866,73 +866,73 @@ functionBody {
   functionTryBlock |
   Assign (
     Default |
-    Delete 
-  ) Semi 
+    Delete
+  ) Semi
 }
 
 initializer {
   braceOrEqualInitializer |
-  LeftParen expressionList RightParen 
+  LeftParen expressionList RightParen
 }
 
 braceOrEqualInitializer {
   Assign initializerClause |
-  bracedInitList 
+  bracedInitList
 }
 
 initializerClause {
   assignmentExpression |
-  bracedInitList 
+  bracedInitList
 }
 
 initializerList {
   initializerClause Ellipsis? (
-    Comma initializerClause Ellipsis? 
-  )* 
+    Comma initializerClause Ellipsis?
+  )*
 }
 
 bracedInitList {
   LeftBrace (
-    initializerList Comma? 
-  )? RightBrace 
+    initializerList Comma?
+  )? RightBrace
 }
 
 className {
   Identifier |
-  simpleTemplateId 
+  simpleTemplateId
 }
 
 classSpecifier {
-  classHead LeftBrace memberSpecification? RightBrace 
+  classHead LeftBrace memberSpecification? RightBrace
 }
 
 classHead {
   classKey attributeSpecifierSeq? (
-    classHeadName classVirtSpecifier? 
+    classHeadName classVirtSpecifier?
   )? baseClause? |
   Union attributeSpecifierSeq? (
-    classHeadName classVirtSpecifier? 
-  )? 
+    classHeadName classVirtSpecifier?
+  )?
 }
 
 classHeadName {
-  nestedNameSpecifier? className 
+  nestedNameSpecifier? className
 }
 
 classVirtSpecifier {
-  Final 
+  Final
 }
 
 classKey {
   Class |
-  Struct 
+  Struct
 }
 
 memberSpecification {
   (
     memberdeclaration |
-    accessSpecifier Colon 
-  )+ 
+    accessSpecifier Colon
+  )+
 }
 
 memberdeclaration {
@@ -942,245 +942,245 @@ memberdeclaration {
   staticAssertDeclaration |
   templateDeclaration |
   aliasDeclaration |
-  emptyDeclaration 
+  emptyDeclaration
 }
 
 memberDeclaratorList {
   memberDeclarator (
-    Comma memberDeclarator 
-  )* 
+    Comma memberDeclarator
+  )*
 }
 
 memberDeclarator {
   declarator (
     virtualSpecifierSeq? pureSpecifier? |
-    braceOrEqualInitializer? 
+    braceOrEqualInitializer?
   ) |
-  Identifier? attributeSpecifierSeq? Colon constantExpression 
+  Identifier? attributeSpecifierSeq? Colon constantExpression
 }
 
 virtualSpecifierSeq {
-  virtualSpecifier+ 
+  virtualSpecifier+
 }
 
 virtualSpecifier {
   Override |
-  Final 
+  Final
 }
 
 pureSpecifier {
-  Assign val { OctalLiteral } 
+  Assign val { OctalLiteral }
   /// @ActionBlock {if($val.text.compareTo("0")!=0) throw new InputMismatchException(this);
   /// @ActionBlock 		}
-   
+
 }
 
 baseClause {
-  Colon baseSpecifierList 
+  Colon baseSpecifierList
 }
 
 baseSpecifierList {
   baseSpecifier Ellipsis? (
-    Comma baseSpecifier Ellipsis? 
-  )* 
+    Comma baseSpecifier Ellipsis?
+  )*
 }
 
 baseSpecifier {
   attributeSpecifierSeq? (
     baseTypeSpecifier |
     Virtual accessSpecifier? baseTypeSpecifier |
-    accessSpecifier Virtual? baseTypeSpecifier 
-  ) 
+    accessSpecifier Virtual? baseTypeSpecifier
+  )
 }
 
 classOrDeclType {
   nestedNameSpecifier? className |
-  decltypeSpecifier 
+  decltypeSpecifier
 }
 
 baseTypeSpecifier {
-  classOrDeclType 
+  classOrDeclType
 }
 
 accessSpecifier {
   Private |
   Protected |
-  Public 
+  Public
 }
 
 conversionFunctionId {
-  Operator conversionTypeId 
+  Operator conversionTypeId
 }
 
 conversionTypeId {
-  typeSpecifierSeq conversionDeclarator? 
+  typeSpecifierSeq conversionDeclarator?
 }
 
 conversionDeclarator {
-  pointerOperator conversionDeclarator? 
+  pointerOperator conversionDeclarator?
 }
 
 constructorInitializer {
-  Colon memInitializerList 
+  Colon memInitializerList
 }
 
 memInitializerList {
   memInitializer Ellipsis? (
-    Comma memInitializer Ellipsis? 
-  )* 
+    Comma memInitializer Ellipsis?
+  )*
 }
 
 memInitializer {
   meminitializerid (
     LeftParen expressionList? RightParen |
-    bracedInitList 
-  ) 
+    bracedInitList
+  )
 }
 
 meminitializerid {
   classOrDeclType |
-  Identifier 
+  Identifier
 }
 
 operatorFunctionId {
-  Operator theOperator 
+  Operator theOperator
 }
 
 literalOperatorId {
   Operator (
     StringLiteral Identifier |
-    UserDefinedStringLiteral 
-  ) 
+    UserDefinedStringLiteral
+  )
 }
 
 templateDeclaration {
-  Template Less templateparameterList Greater declaration 
+  Template Less templateparameterList Greater declaration
 }
 
 templateparameterList {
   templateParameter (
-    Comma templateParameter 
-  )* 
+    Comma templateParameter
+  )*
 }
 
 templateParameter {
   typeParameter |
-  parameterDeclaration 
+  parameterDeclaration
 }
 
 typeParameter {
   (
     (
-      Template Less templateparameterList Greater 
+      Template Less templateparameterList Greater
     )? Class |
-    Typename_ 
+    Typename_
   ) (
     (
-      Ellipsis? Identifier? 
+      Ellipsis? Identifier?
     ) |
     (
-      Identifier? Assign theTypeId 
-    ) 
-  ) 
+      Identifier? Assign theTypeId
+    )
+  )
 }
 
 simpleTemplateId {
-  templateName Less templateArgumentList? Greater 
+  templateName Less templateArgumentList? Greater
 }
 
 templateId {
   simpleTemplateId |
   (
     operatorFunctionId |
-    literalOperatorId 
-  ) Less templateArgumentList? Greater 
+    literalOperatorId
+  ) Less templateArgumentList? Greater
 }
 
 templateName {
-  Identifier 
+  Identifier
 }
 
 templateArgumentList {
   templateArgument Ellipsis? (
-    Comma templateArgument Ellipsis? 
-  )* 
+    Comma templateArgument Ellipsis?
+  )*
 }
 
 templateArgument {
   theTypeId |
   constantExpression |
-  idExpression 
+  idExpression
 }
 
 typeNameSpecifier {
   Typename_ nestedNameSpecifier (
     Identifier |
-    Template? simpleTemplateId 
-  ) 
+    Template? simpleTemplateId
+  )
 }
 
 explicitInstantiation {
-  Extern? Template declaration 
+  Extern? Template declaration
 }
 
 explicitSpecialization {
-  Template Less Greater declaration 
+  Template Less Greater declaration
 }
 
 tryBlock {
-  Try compoundStatement handlerSeq 
+  Try compoundStatement handlerSeq
 }
 
 functionTryBlock {
-  Try constructorInitializer? compoundStatement handlerSeq 
+  Try constructorInitializer? compoundStatement handlerSeq
 }
 
 handlerSeq {
-  handler+ 
+  handler+
 }
 
 handler {
-  Catch LeftParen exceptionDeclaration RightParen compoundStatement 
+  Catch LeftParen exceptionDeclaration RightParen compoundStatement
 }
 
 exceptionDeclaration {
   attributeSpecifierSeq? typeSpecifierSeq (
     declarator |
-    abstractDeclarator 
+    abstractDeclarator
   )? |
-  Ellipsis 
+  Ellipsis
 }
 
 throwExpression {
-  Throw assignmentExpression? 
+  Throw assignmentExpression?
 }
 
 exceptionSpecification {
   dynamicExceptionSpecification |
-  noeExceptSpecification 
+  noeExceptSpecification
 }
 
 dynamicExceptionSpecification {
-  Throw LeftParen typeIdList? RightParen 
+  Throw LeftParen typeIdList? RightParen
 }
 
 typeIdList {
   theTypeId Ellipsis? (
-    Comma theTypeId Ellipsis? 
-  )* 
+    Comma theTypeId Ellipsis?
+  )*
 }
 
 noeExceptSpecification {
   Noexcept LeftParen constantExpression RightParen |
-  Noexcept 
+  Noexcept
 }
 
 theOperator {
   New (
-    LeftBracket RightBracket 
+    LeftBracket RightBracket
   )? |
   Delete (
-    LeftBracket RightBracket 
+    LeftBracket RightBracket
   )? |
   Plus |
   Minus |
@@ -1218,7 +1218,7 @@ theOperator {
   ArrowStar |
   Arrow |
   LeftParen RightParen |
-  LeftBracket RightBracket 
+  LeftBracket RightBracket
 }
 
 literal {
@@ -1228,7 +1228,7 @@ literal {
   StringLiteral |
   BooleanLiteral |
   PointerLiteral |
-  UserDefinedLiteral 
+  UserDefinedLiteral
 }
 
 @tokens {
@@ -1237,663 +1237,663 @@ literal {
     DecimalLiteral Integersuffix? |
     OctalLiteral Integersuffix? |
     HexadecimalLiteral Integersuffix? |
-    BinaryLiteral Integersuffix? 
+    BinaryLiteral Integersuffix?
   }
-  
+
   CharacterLiteral {
     (
       'u' |
       'U' |
-      'L' 
-    )? '\'' Cchar+ '\'' 
+      'L'
+    )? '\'' Cchar+ '\''
   }
-  
+
   FloatingLiteral {
     Fractionalconstant Exponentpart? Floatingsuffix? |
-    Digitsequence Exponentpart Floatingsuffix? 
+    Digitsequence Exponentpart Floatingsuffix?
   }
-  
+
   StringLiteral {
     Encodingprefix? (
       Rawstring |
-      '"' Schar* '"' 
-    ) 
+      '"' Schar* '"'
+    )
   }
-  
+
   BooleanLiteral {
     False_ |
-    True_ 
+    True_
   }
-  
+
   PointerLiteral {
-    Nullptr 
+    Nullptr
   }
-  
+
   UserDefinedLiteral {
     UserDefinedIntegerLiteral |
     UserDefinedFloatingLiteral |
     UserDefinedStringLiteral |
-    UserDefinedCharacterLiteral 
+    UserDefinedCharacterLiteral
   }
-  
+
   MultiLineMacro {
     /// @TODO hidden token '#'(~[\n]*?'\\''\r'?'\n')+~[\n]+->channel(HIDDEN)
     '#' (
-      
+
       // TODO verify negation
-      ![\n] *? '\\' '\r'? '\n' 
-    )+ 
+      ![\n] *? '\\' '\r'? '\n'
+    )+
     // TODO verify negation
-    ![\n] + 
+    ![\n] +
   }
-  
+
   Directive {
     /// @TODO hidden token '#'~[\n]*->channel(HIDDEN)
-    '#' 
+    '#'
     // TODO verify negation
-    ![\n] * 
+    ![\n] *
   }
-  
+
   Alignas {
-    'alignas' 
+    'alignas'
   }
-  
+
   Alignof {
-    'alignof' 
+    'alignof'
   }
-  
+
   Asm {
-    'asm' 
+    'asm'
   }
-  
+
   Auto {
-    'auto' 
+    'auto'
   }
-  
+
   Bool {
-    'bool' 
+    'bool'
   }
-  
+
   Break {
-    'break' 
+    'break'
   }
-  
+
   Case {
-    'case' 
+    'case'
   }
-  
+
   Catch {
-    'catch' 
+    'catch'
   }
-  
+
   Char {
-    'char' 
+    'char'
   }
-  
+
   Char16 {
-    'char16_t' 
+    'char16_t'
   }
-  
+
   Char32 {
-    'char32_t' 
+    'char32_t'
   }
-  
+
   Class {
-    'class' 
+    'class'
   }
-  
+
   Const {
-    'const' 
+    'const'
   }
-  
+
   Constexpr {
-    'constexpr' 
+    'constexpr'
   }
-  
+
   Const_cast {
-    'const_cast' 
+    'const_cast'
   }
-  
+
   Continue {
-    'continue' 
+    'continue'
   }
-  
+
   Decltype {
-    'decltype' 
+    'decltype'
   }
-  
+
   Default {
-    'default' 
+    'default'
   }
-  
+
   Delete {
-    'delete' 
+    'delete'
   }
-  
+
   Do {
-    'do' 
+    'do'
   }
-  
+
   Double {
-    'double' 
+    'double'
   }
-  
+
   Dynamic_cast {
-    'dynamic_cast' 
+    'dynamic_cast'
   }
-  
+
   Else {
-    'else' 
+    'else'
   }
-  
+
   Enum {
-    'enum' 
+    'enum'
   }
-  
+
   Explicit {
-    'explicit' 
+    'explicit'
   }
-  
+
   Export {
-    'export' 
+    'export'
   }
-  
+
   Extern {
-    'extern' 
+    'extern'
   }
-  
+
   False_ {
-    'false' 
+    'false'
   }
-  
+
   Final {
-    'final' 
+    'final'
   }
-  
+
   Float {
-    'float' 
+    'float'
   }
-  
+
   For {
-    'for' 
+    'for'
   }
-  
+
   Friend {
-    'friend' 
+    'friend'
   }
-  
+
   Goto {
-    'goto' 
+    'goto'
   }
-  
+
   If {
-    'if' 
+    'if'
   }
-  
+
   Inline {
-    'inline' 
+    'inline'
   }
-  
+
   Int {
-    'int' 
+    'int'
   }
-  
+
   Long {
-    'long' 
+    'long'
   }
-  
+
   Mutable {
-    'mutable' 
+    'mutable'
   }
-  
+
   Namespace {
-    'namespace' 
+    'namespace'
   }
-  
+
   New {
-    'new' 
+    'new'
   }
-  
+
   Noexcept {
-    'noexcept' 
+    'noexcept'
   }
-  
+
   Nullptr {
-    'nullptr' 
+    'nullptr'
   }
-  
+
   Operator {
-    'operator' 
+    'operator'
   }
-  
+
   Override {
-    'override' 
+    'override'
   }
-  
+
   Private {
-    'private' 
+    'private'
   }
-  
+
   Protected {
-    'protected' 
+    'protected'
   }
-  
+
   Public {
-    'public' 
+    'public'
   }
-  
+
   Register {
-    'register' 
+    'register'
   }
-  
+
   Reinterpret_cast {
-    'reinterpret_cast' 
+    'reinterpret_cast'
   }
-  
+
   Return {
-    'return' 
+    'return'
   }
-  
+
   Short {
-    'short' 
+    'short'
   }
-  
+
   Signed {
-    'signed' 
+    'signed'
   }
-  
+
   Sizeof {
-    'sizeof' 
+    'sizeof'
   }
-  
+
   Static {
-    'static' 
+    'static'
   }
-  
+
   Static_assert {
-    'static_assert' 
+    'static_assert'
   }
-  
+
   Static_cast {
-    'static_cast' 
+    'static_cast'
   }
-  
+
   Struct {
-    'struct' 
+    'struct'
   }
-  
+
   Switch {
-    'switch' 
+    'switch'
   }
-  
+
   Template {
-    'template' 
+    'template'
   }
-  
+
   This {
-    'this' 
+    'this'
   }
-  
+
   Thread_local {
-    'thread_local' 
+    'thread_local'
   }
-  
+
   Throw {
-    'throw' 
+    'throw'
   }
-  
+
   True_ {
-    'true' 
+    'true'
   }
-  
+
   Try {
-    'try' 
+    'try'
   }
-  
+
   Typedef {
-    'typedef' 
+    'typedef'
   }
-  
+
   Typeid_ {
-    'typeid' 
+    'typeid'
   }
-  
+
   Typename_ {
-    'typename' 
+    'typename'
   }
-  
+
   Union {
-    'union' 
+    'union'
   }
-  
+
   Unsigned {
-    'unsigned' 
+    'unsigned'
   }
-  
+
   Using {
-    'using' 
+    'using'
   }
-  
+
   Virtual {
-    'virtual' 
+    'virtual'
   }
-  
+
   Void {
-    'void' 
+    'void'
   }
-  
+
   Volatile {
-    'volatile' 
+    'volatile'
   }
-  
+
   Wchar {
-    'wchar_t' 
+    'wchar_t'
   }
-  
+
   While {
-    'while' 
+    'while'
   }
-  
+
   LeftParen {
-    '(' 
+    '('
   }
-  
+
   RightParen {
-    ')' 
+    ')'
   }
-  
+
   LeftBracket {
-    '[' 
+    '['
   }
-  
+
   RightBracket {
-    ']' 
+    ']'
   }
-  
+
   LeftBrace {
-    '{' 
+    '{'
   }
-  
+
   RightBrace {
-    '}' 
+    '}'
   }
-  
+
   Plus {
-    '+' 
+    '+'
   }
-  
+
   Minus {
-    '-' 
+    '-'
   }
-  
+
   Star {
-    '*' 
+    '*'
   }
-  
+
   Div {
-    '/' 
+    '/'
   }
-  
+
   Mod {
-    '%' 
+    '%'
   }
-  
+
   Caret {
-    '^' 
+    '^'
   }
-  
+
   And {
-    '&' 
+    '&'
   }
-  
+
   Or {
-    '|' 
+    '|'
   }
-  
+
   Tilde {
-    '~' 
+    '~'
   }
-  
+
   Not {
     '!' |
-    'not' 
+    'not'
   }
-  
+
   Assign {
-    '=' 
+    '='
   }
-  
+
   Less {
-    '<' 
+    '<'
   }
-  
+
   Greater {
-    '>' 
+    '>'
   }
-  
+
   PlusAssign {
-    '+=' 
+    '+='
   }
-  
+
   MinusAssign {
-    '-=' 
+    '-='
   }
-  
+
   StarAssign {
-    '*=' 
+    '*='
   }
-  
+
   DivAssign {
-    '/=' 
+    '/='
   }
-  
+
   ModAssign {
-    '%=' 
+    '%='
   }
-  
+
   XorAssign {
-    '^=' 
+    '^='
   }
-  
+
   AndAssign {
-    '&=' 
+    '&='
   }
-  
+
   OrAssign {
-    '|=' 
+    '|='
   }
-  
+
   LeftShiftAssign {
-    '<<=' 
+    '<<='
   }
-  
+
   RightShiftAssign {
-    '>>=' 
+    '>>='
   }
-  
+
   Equal {
-    '==' 
+    '=='
   }
-  
+
   NotEqual {
-    '!=' 
+    '!='
   }
-  
+
   LessEqual {
-    '<=' 
+    '<='
   }
-  
+
   GreaterEqual {
-    '>=' 
+    '>='
   }
-  
+
   AndAnd {
     '&&' |
-    'and' 
+    'and'
   }
-  
+
   OrOr {
     '||' |
-    'or' 
+    'or'
   }
-  
+
   PlusPlus {
-    '++' 
+    '++'
   }
-  
+
   MinusMinus {
-    '--' 
+    '--'
   }
-  
+
   Comma {
-    ',' 
+    ','
   }
-  
+
   ArrowStar {
-    '->*' 
+    '->*'
   }
-  
+
   Arrow {
-    '->' 
+    '->'
   }
-  
+
   Question {
-    '?' 
+    '?'
   }
-  
+
   Colon {
-    ':' 
+    ':'
   }
-  
+
   Doublecolon {
-    '::' 
+    '::'
   }
-  
+
   Semi {
-    ';' 
+    ';'
   }
-  
+
   Dot {
-    '.' 
+    '.'
   }
-  
+
   DotStar {
-    '.*' 
+    '.*'
   }
-  
+
   Ellipsis {
-    '...' 
+    '...'
   }
-  
+
   Hexquad {
-    HEXADECIMALDIGIT HEXADECIMALDIGIT HEXADECIMALDIGIT HEXADECIMALDIGIT 
+    HEXADECIMALDIGIT HEXADECIMALDIGIT HEXADECIMALDIGIT HEXADECIMALDIGIT
   }
-  
+
   Universalcharactername {
     '\\u' Hexquad |
-    '\\U' Hexquad Hexquad 
+    '\\U' Hexquad Hexquad
   }
-  
+
   Identifier {
     Identifiernondigit (
       Identifiernondigit |
-      DIGIT 
-    )* 
+      DIGIT
+    )*
   }
-  
+
   Identifiernondigit {
     NONDIGIT |
-    Universalcharactername 
+    Universalcharactername
   }
-  
+
   NONDIGIT {
-    $[a-zA-Z_] 
+    $[a-zA-Z_]
   }
-  
+
   DIGIT {
-    $[0-9] 
+    $[0-9]
   }
-  
+
   DecimalLiteral {
     NONZERODIGIT (
-      '\''? DIGIT 
-    )* 
+      '\''? DIGIT
+    )*
   }
-  
+
   OctalLiteral {
     '0' (
-      '\''? OCTALDIGIT 
-    )* 
+      '\''? OCTALDIGIT
+    )*
   }
-  
+
   HexadecimalLiteral {
     (
       '0x' |
-      '0X' 
+      '0X'
     ) HEXADECIMALDIGIT (
-      '\''? HEXADECIMALDIGIT 
-    )* 
+      '\''? HEXADECIMALDIGIT
+    )*
   }
-  
+
   BinaryLiteral {
     (
       '0b' |
-      '0B' 
+      '0B'
     ) BINARYDIGIT (
-      '\''? BINARYDIGIT 
-    )* 
+      '\''? BINARYDIGIT
+    )*
   }
-  
+
   NONZERODIGIT {
-    $[1-9] 
+    $[1-9]
   }
-  
+
   OCTALDIGIT {
-    $[0-7] 
+    $[0-7]
   }
-  
+
   HEXADECIMALDIGIT {
-    $[0-9a-fA-F] 
+    $[0-9a-fA-F]
   }
-  
+
   BINARYDIGIT {
-    $[01] 
+    $[01]
   }
-  
+
   Integersuffix {
     Unsignedsuffix Longsuffix? |
     Unsignedsuffix Longlongsuffix? |
     Longsuffix Unsignedsuffix? |
-    Longlongsuffix Unsignedsuffix? 
+    Longlongsuffix Unsignedsuffix?
   }
-  
+
   Unsignedsuffix {
-    $[uU] 
+    $[uU]
   }
-  
+
   Longsuffix {
-    $[lL] 
+    $[lL]
   }
-  
+
   Longlongsuffix {
     'll' |
-    'LL' 
+    'LL'
   }
-  
+
   Cchar {
-    
+
     // TODO verify negation
     !['\\\r\n]  |
     Escapesequence |
-    Universalcharactername 
+    Universalcharactername
   }
-  
+
   Escapesequence {
     Simpleescapesequence |
     Octalescapesequence |
-    Hexadecimalescapesequence 
+    Hexadecimalescapesequence
   }
-  
+
   Simpleescapesequence {
     '\\\'' |
     '\\"' |
@@ -1907,132 +1907,132 @@ literal {
     (
       '\\' (
         '\r' '\n'? |
-        '\n' 
-      ) 
+        '\n'
+      )
     ) |
     '\\t' |
-    '\\v' 
+    '\\v'
   }
-  
+
   Octalescapesequence {
     '\\' OCTALDIGIT |
     '\\' OCTALDIGIT OCTALDIGIT |
-    '\\' OCTALDIGIT OCTALDIGIT OCTALDIGIT 
+    '\\' OCTALDIGIT OCTALDIGIT OCTALDIGIT
   }
-  
+
   Hexadecimalescapesequence {
-    '\\x' HEXADECIMALDIGIT+ 
+    '\\x' HEXADECIMALDIGIT+
   }
-  
+
   Fractionalconstant {
     Digitsequence? '.' Digitsequence |
-    Digitsequence '.' 
+    Digitsequence '.'
   }
-  
+
   Exponentpart {
     'e' SIGN? Digitsequence |
-    'E' SIGN? Digitsequence 
+    'E' SIGN? Digitsequence
   }
-  
+
   SIGN {
-    $[+-] 
+    $[+-]
   }
-  
+
   Digitsequence {
     DIGIT (
-      '\''? DIGIT 
-    )* 
+      '\''? DIGIT
+    )*
   }
-  
+
   Floatingsuffix {
-    $[flFL] 
+    $[flFL]
   }
-  
+
   Encodingprefix {
     'u8' |
     'u' |
     'U' |
-    'L' 
+    'L'
   }
-  
+
   Schar {
-    
+
     // TODO verify negation
     !["\\\r\n]  |
     Escapesequence |
-    Universalcharactername 
+    Universalcharactername
   }
-  
+
   Rawstring {
     'R"' (
       (
-        '\\' $["()] 
+        '\\' $["()]
       ) |
-      
+
       // TODO verify negation
-      ![\r\n (]  
-    )*? '(' 
+      ![\r\n (]
+    )*? '('
     // TODO verify negation
     ![)] *? ')' (
       (
-        '\\' $["()] 
+        '\\' $["()]
       ) |
-      
+
       // TODO verify negation
-      ![\r\n "]  
-    )*? '"' 
+      ![\r\n "]
+    )*? '"'
   }
-  
+
   UserDefinedIntegerLiteral {
     DecimalLiteral Udsuffix |
     OctalLiteral Udsuffix |
     HexadecimalLiteral Udsuffix |
-    BinaryLiteral Udsuffix 
+    BinaryLiteral Udsuffix
   }
-  
+
   UserDefinedFloatingLiteral {
     Fractionalconstant Exponentpart? Udsuffix |
-    Digitsequence Exponentpart Udsuffix 
+    Digitsequence Exponentpart Udsuffix
   }
-  
+
   UserDefinedStringLiteral {
-    StringLiteral Udsuffix 
+    StringLiteral Udsuffix
   }
-  
+
   UserDefinedCharacterLiteral {
-    CharacterLiteral Udsuffix 
+    CharacterLiteral Udsuffix
   }
-  
+
   Udsuffix {
-    Identifier 
+    Identifier
   }
-  
+
   Whitespace {
     /// [ \t]+->skip
-    $[ \t]+ 
+    $[ \t]+
   }
-  
+
   Newline {
     /// ('\r''\n'?|'\n')->skip
     (
       '\r' '\n'? |
-      '\n' 
-    ) 
+      '\n'
+    )
   }
-  
+
   BlockComment {
     /// '/*'.*?'*/'->skip
-    '/*' .*? '*/' 
+    '/*' .*? '*/'
   }
-  
+
   LineComment {
     /// '//'~[\r\n]*->skip
-    '//' 
+    '//'
     // TODO verify negation
-    ![\r\n] * 
+    ![\r\n] *
   }
-  
-  
+
+
 }
 
 @skip {
