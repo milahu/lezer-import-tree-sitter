@@ -19,13 +19,17 @@ name=$(basename "$dir")
 d="$dir/lezer-parser-$name/src"
 [ -d "$d" ] || mkdir -p "$d"
 
-# TODO handle grammars without lexer
-parser=$(ls $dir/antlr4-grammar-$name/*Parser.g4)
-lexer=$(ls $dir/antlr4-grammar-$name/*Lexer.g4)
+parser=$(find $dir/antlr4-grammar-$name -maxdepth 1 -type f -name "*Parser.g4")
+lexer=$(find $dir/antlr4-grammar-$name -maxdepth 1 -type f -name "*Lexer.g4")
+if [ -z "$parser" ]; then
+  parser=$(find $dir/antlr4-grammar-$name -maxdepth 1 -type f -name "*.g4")
+fi
 out="$dir/lezer-parser-$name/src/grammar.lezer"
 echo "importing from"
 echo "  $parser"
-echo "  $lexer"
+if [ -n "$lexer" ]; then
+  echo "  $lexer"
+fi
 echo "to"
 echo "  $out"
 echo "node src/import-antlr4 $parser $lexer >$out"
