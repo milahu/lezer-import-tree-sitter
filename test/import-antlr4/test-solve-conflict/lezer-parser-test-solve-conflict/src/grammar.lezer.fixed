@@ -1,5 +1,8 @@
 @precedence {
   prec1 @left
+, prec2 @left
+, prec3 @left
+, prec4 @left
 }
 
 @top prog {
@@ -9,11 +12,11 @@
 expr {
   expr (
     !prec1 '*' |
-    '/'
+    !prec2 '/'
   ) expr |
   expr (
-    '+' |
-    '-'
+    !prec3 '+' |
+    !prec4 '-'
   ) expr |
   INT |
   '(' expr ')'
