@@ -401,6 +401,10 @@ transpileOfNodeType.LexerElementContext = (n, s) => unwrapNode(n, s) + " " // ad
 //transpileOfNodeType.LexerAtomContext = unwrapNode // can be regex
 //transpileOfNodeType.TerminalContext = unwrapNode
 
+// ignore markers like "<assoc=right>"
+// these markers are useless, because they are in the wrong position.
+// ANTLR has markers before rules, lezer has markers before tokens.
+// conflicts are solved by src/import-antlr4/solve-conflicts.js
 transpileOfNodeType.ElementOptionsContext = ignoreNode
 
 /*
