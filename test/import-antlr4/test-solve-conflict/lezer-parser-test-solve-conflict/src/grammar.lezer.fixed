@@ -1,5 +1,5 @@
 @precedence {
-  prec1234 @left
+  prec1 @left
 }
 
 @top prog {
@@ -8,7 +8,7 @@
 
 expr {
   expr (
-    !prec1234 '*' |
+    !prec1 '*' |
     '/'
   ) expr |
   expr (

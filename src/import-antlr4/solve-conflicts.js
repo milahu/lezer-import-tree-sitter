@@ -41,7 +41,7 @@ const grammarMagicString = new MagicString(lezerGrammarText)
 //         });
 
 const lezerGrammar = new LezerGrammarInput(lezerGrammarText, "grammar.lezer").parse()
-//console.log("lezerGrammar:"); console.log(lezerGrammar)
+//console.log("lezerGrammar:"); console.dir(lezerGrammar, {depth: 10}); return
 
 
 
@@ -53,7 +53,10 @@ try {
   return 0
 }
 catch (error) {
-  if (error.constructor?.name != "GenError") {
+  if (
+    error.constructor?.name != "GenError" ||
+    !error.conflicts
+  ) {
     throw error
   }
   lezerGeneratorError = error
@@ -62,6 +65,7 @@ catch (error) {
   // error.conflicts[0].term // TODO term.start is conflict location in grammar text
 }
 
+console.log("lezerGeneratorError:"); console.log(lezerGeneratorError)
 //console.log("lezerGeneratorError.message:"); console.log(lezerGeneratorError.message)
 
 
@@ -370,15 +374,51 @@ for (const conflict of lezerGeneratorError.conflicts) {
   // add precedence marker to lezer grammar
   //console.log("lezerGrammar:"); console.log(lezerGrammar)
 
+  let precName
+  if (
+    lezerGrammar.precedences == null ||
+    lezerGrammar.precedences.items.length == 0
+  ) {
+    // create new precedence block
+    precName = "prec1"
+    grammarMagicString.prependLeft(0, [
+      "@precedence {",
+      `  ${precName} ${solution.isLeft ? "@left" : "@right"}`,
+      "}",
+      "",
+    ].map(line => line + "\n").join(""))
+  }
+  else {
+    // append to old precedence block
+    const oldPrecNames = new Set(lezerGrammar.precedences.items.map(p => p.id.name))
+    let precNumber = 1
+    function newPrecName() {
+      let name
+      while (true) {
+        name = `prec${precNumber}`
+        if (!oldPrecNames.has(name)) {
+          // found new name
+          oldPrecNames.add(name)
+          break
+        }
+        precNumber++
+      }
+      return name
+    }
+    precName = newPrecName()
+    const lastPrecDeclaration = lezerGrammar.precedences.items.slice(-1)[0]
+    console.log("lastPrecDeclaration:", lastPrecDeclaration.constructor.name); console.dir(lastPrecDeclaration)
+    console.log("lezerGrammar.precedences:"); console.dir(lezerGrammar.precedences)
+    // lezer-generator.js -> function parsePrecedence
+    // TODO what is "@cut"? seen in "function parsePrecedence"
+    grammarMagicString.appendRight(lastPrecDeclaration.to, (
+      `  , ${precName} ${solution.isLeft ? "@left" : "@right"}\n`
+    ))
+  }
+
   // TODO find the conflict position "·" in lezer grammar
   // -> use conflict.term.start
-  grammarMagicString.prependLeft(conflict.term.start, "!prec1234 ")
-  grammarMagicString.prependLeft(0, [
-    "@precedence {",
-    `  prec1234 ${solution.isLeft ? "@left" : "@right"}`,
-    "}",
-    "",
-  ].map(line => line + "\n").join(""))
+  grammarMagicString.prependLeft(conflict.term.start, `!${precName} `)
 
 } // loop conflicts
 

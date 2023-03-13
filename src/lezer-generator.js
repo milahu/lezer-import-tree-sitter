@@ -2,13 +2,14 @@ import { NodeProp } from '@lezer/common';
 import { LRParser, LocalTokenGroup } from '@lezer/lr';
 
 class Node {
-    constructor(start) {
+    constructor(start, to) {
         this.start = start;
+        this.to = to;
     }
 }
 class GrammarDeclaration extends Node {
-    constructor(start, rules, topRules, tokens, localTokens, context, externalTokens, externalSpecializers, externalPropSources, precedences, mainSkip, scopedSkip, dialects, externalProps, autoDelim) {
-        super(start);
+    constructor(start, to, rules, topRules, tokens, localTokens, context, externalTokens, externalSpecializers, externalPropSources, precedences, mainSkip, scopedSkip, dialects, externalProps, autoDelim) {
+        super(start, to);
         this.rules = rules;
         this.topRules = topRules;
         this.tokens = tokens;
@@ -27,8 +28,8 @@ class GrammarDeclaration extends Node {
     toString() { return Object.values(this.rules).join("\n"); }
 }
 class RuleDeclaration extends Node {
-    constructor(start, id, props, params, expr) {
-        super(start);
+    constructor(start, to, id, props, params, expr) {
+        super(start, to);
         this.id = id;
         this.props = props;
         this.params = params;
@@ -39,27 +40,34 @@ class RuleDeclaration extends Node {
     }
 }
 class PrecDeclaration extends Node {
-    constructor(start, items) {
-        super(start);
+    constructor(start, to, items) {
+        super(start, to);
         this.items = items;
     }
 }
+class PrecDeclarationItem extends Node {
+    constructor(start, to, id, type) {
+        super(start, to);
+        this.id = id;
+        this.type = type;
+    }
+}
 class TokenPrecDeclaration extends Node {
-    constructor(start, items) {
-        super(start);
+    constructor(start, to, items) {
+        super(start, to);
         this.items = items;
     }
 }
 class TokenConflictDeclaration extends Node {
-    constructor(start, a, b) {
-        super(start);
+    constructor(start, to, a, b) {
+        super(start, to);
         this.a = a;
         this.b = b;
     }
 }
 class TokenDeclaration extends Node {
-    constructor(start, precedences, conflicts, rules, literals) {
-        super(start);
+    constructor(start, to, precedences, conflicts, rules, literals) {
+        super(start, to);
         this.precedences = precedences;
         this.conflicts = conflicts;
         this.rules = rules;
@@ -67,38 +75,38 @@ class TokenDeclaration extends Node {
     }
 }
 class LocalTokenDeclaration extends Node {
-    constructor(start, precedences, rules, fallback) {
-        super(start);
+    constructor(start, to, precedences, rules, fallback) {
+        super(start, to);
         this.precedences = precedences;
         this.rules = rules;
         this.fallback = fallback;
     }
 }
 class LiteralDeclaration extends Node {
-    constructor(start, literal, props) {
-        super(start);
+    constructor(start, to, literal, props) {
+        super(start, to);
         this.literal = literal;
         this.props = props;
     }
 }
 class ContextDeclaration extends Node {
-    constructor(start, id, source) {
-        super(start);
+    constructor(start, to, id, source) {
+        super(start, to);
         this.id = id;
         this.source = source;
     }
 }
 class ExternalTokenDeclaration extends Node {
-    constructor(start, id, source, tokens) {
-        super(start);
+    constructor(start, to, id, source, tokens) {
+        super(start, to);
         this.id = id;
         this.source = source;
         this.tokens = tokens;
     }
 }
 class ExternalSpecializeDeclaration extends Node {
-    constructor(start, type, token, id, source, tokens) {
-        super(start);
+    constructor(start, to, type, token, id, source, tokens) {
+        super(start, to);
         this.type = type;
         this.token = token;
         this.id = id;
@@ -107,23 +115,23 @@ class ExternalSpecializeDeclaration extends Node {
     }
 }
 class ExternalPropSourceDeclaration extends Node {
-    constructor(start, id, source) {
-        super(start);
+    constructor(start, to, id, source) {
+        super(start, to);
         this.id = id;
         this.source = source;
     }
 }
 class ExternalPropDeclaration extends Node {
-    constructor(start, id, externalID, source) {
-        super(start);
+    constructor(start, to, id, externalID, source) {
+        super(start, to);
         this.id = id;
         this.externalID = externalID;
         this.source = source;
     }
 }
 class Identifier extends Node {
-    constructor(start, name) {
-        super(start);
+    constructor(start, to, name) {
+        super(start, to);
         this.name = name;
     }
     toString() { return this.name; }
@@ -134,8 +142,8 @@ class Expression extends Node {
 }
 Expression.prototype.prec = 10;
 class NameExpression extends Expression {
-    constructor(start, id, args) {
-        super(start);
+    constructor(start, to, id, args) {
+        super(start, to);
         this.id = id;
         this.args = args;
     }
@@ -149,8 +157,8 @@ class NameExpression extends Expression {
     }
 }
 class SpecializeExpression extends Expression {
-    constructor(start, type, props, token, content) {
-        super(start);
+    constructor(start, to, type, props, token, content) {
+        super(start, to);
         this.type = type;
         this.props = props;
         this.token = token;
@@ -167,8 +175,8 @@ class SpecializeExpression extends Expression {
     }
 }
 class InlineRuleExpression extends Expression {
-    constructor(start, rule) {
-        super(start);
+    constructor(start, to, rule) {
+        super(start, to);
         this.rule = rule;
     }
     toString() {
@@ -186,8 +194,8 @@ class InlineRuleExpression extends Expression {
     }
 }
 class ChoiceExpression extends Expression {
-    constructor(start, exprs) {
-        super(start);
+    constructor(start, to, exprs) {
+        super(start, to);
         this.exprs = exprs;
     }
     toString() { return this.exprs.map(e => maybeParens(e, this)).join(" | "); }
@@ -201,8 +209,8 @@ class ChoiceExpression extends Expression {
 }
 ChoiceExpression.prototype.prec = 1;
 class SequenceExpression extends Expression {
-    constructor(start, exprs, markers, empty = false) {
-        super(start);
+    constructor(start, to, exprs, markers, empty = false) {
+        super(start, to);
         this.exprs = exprs;
         this.markers = markers;
         this.empty = empty;
@@ -221,8 +229,8 @@ class SequenceExpression extends Expression {
 }
 SequenceExpression.prototype.prec = 2;
 class ConflictMarker extends Node {
-    constructor(start, id, type) {
-        super(start);
+    constructor(start, to, id, type) {
+        super(start, to);
         this.id = id;
         this.type = type;
     }
@@ -230,8 +238,8 @@ class ConflictMarker extends Node {
     eq(other) { return this.id.name == other.id.name && this.type == other.type; }
 }
 class RepeatExpression extends Expression {
-    constructor(start, expr, kind) {
-        super(start);
+    constructor(start, to, expr, kind) {
+        super(start, to);
         this.expr = expr;
         this.kind = kind;
     }
@@ -247,16 +255,16 @@ class RepeatExpression extends Expression {
 RepeatExpression.prototype.prec = 3;
 class LiteralExpression extends Expression {
     // value.length is always > 0
-    constructor(start, value) {
-        super(start);
+    constructor(start, to, value) {
+        super(start, to);
         this.value = value;
     }
     toString() { return JSON.stringify(this.value); }
     eq(other) { return this.value == other.value; }
 }
 class SetExpression extends Expression {
-    constructor(start, ranges, inverted) {
-        super(start);
+    constructor(start, to, ranges, inverted) {
+        super(start, to);
         this.ranges = ranges;
         this.inverted = inverted;
     }
@@ -271,8 +279,8 @@ class SetExpression extends Expression {
     }
 }
 class AnyExpression extends Expression {
-    constructor(start) {
-        super(start);
+    constructor(start, to) {
+        super(start, to);
     }
     toString() { return "_"; }
     eq() { return true; }
@@ -298,8 +306,8 @@ const CharClasses = {
     eof: [[0xffff, 0xffff]]
 };
 class CharClass extends Expression {
-    constructor(start, type) {
-        super(start);
+    constructor(start, to, type) {
+        super(start, to);
         this.type = type;
     }
     toString() { return "@" + this.type; }
@@ -312,8 +320,8 @@ function exprsEq(a, b) {
     return a.length == b.length && a.every((e, i) => exprEq(e, b[i]));
 }
 class Prop extends Node {
-    constructor(start, at, name, value) {
-        super(start);
+    constructor(start, to, at, name, value) {
+        super(start, to);
         this.at = at;
         this.name = name;
         this.value = value;
@@ -336,8 +344,8 @@ class Prop extends Node {
     }
 }
 class PropPart extends Node {
-    constructor(start, value, name) {
-        super(start);
+    constructor(start, to, value, name) {
+        super(start, to);
         this.value = value;
         this.name = name;
     }
@@ -357,12 +365,13 @@ function hasProps(props) {
 }
 let termHash = 0;
 class Term {
-    constructor(name, flags, nodeName, props = {}, start = -1) {
+    constructor(name, flags, nodeName, props = {}, start = -1, to = -1) {
         this.name = name;
         this.flags = flags;
         this.nodeName = nodeName;
         this.props = props;
         this.start = start; // term position in grammar text. TODO rename to grammarStart?
+        this.to = to;
         this.hash = ++termHash; // Used for sorting and hashing during parser generation
         this.id = -1; // Assigned in a later stage, used in actual output
         // Filled in only after the rules are simplified, used in automaton.ts
@@ -391,10 +400,10 @@ class TermSet {
         this.eof = this.term("␄", null, 1 /* TermFlag.Terminal */ | 4 /* TermFlag.Eof */);
         this.error = this.term("⚠", "⚠", 8 /* TermFlag.Preserve */);
     }
-    term(name, nodeName, flags = 0, props = {}, start = -1) {
+    term(name, nodeName, flags = 0, props = {}, start = -1, to = -1) {
         // TODO milahu trace Term "*"
         //console.log(`400 new term.name`, name, new Error().stack)
-        let term = new Term(name, flags, nodeName, props, start);
+        let term = new Term(name, flags, nodeName, props, start, to);
         this.terms.push(term);
         this.names[name] = term;
         return term;
@@ -404,9 +413,9 @@ class TermSet {
         this.tops.push(term);
         return term;
     }
-    makeTerminal(name, nodeName, props = {}, start = -1) {
+    makeTerminal(name, nodeName, props = {}, start = -1, to = -1) {
         // TODO milahu trace Term "*"
-        return this.term(name, nodeName, 1 /* TermFlag.Terminal */, props, start);
+        return this.term(name, nodeName, 1 /* TermFlag.Terminal */, props, start, to);
     }
     makeNonTerminal(name, nodeName, props = {}) {
         return this.term(name, nodeName, 0, props);
@@ -1023,7 +1032,7 @@ function parseGrammar(input) {
             let id = parseIdent(input);
             input.expect("id", "from");
             let source = input.expect("string");
-            context = new ContextDeclaration(start, id, source);
+            context = new ContextDeclaration(start, -1, id, source);
         }
         else if (input.eat("at", "external")) {
             if (input.eat("id", "tokens"))
@@ -1083,7 +1092,7 @@ function parseGrammar(input) {
     }
     if (!sawTop)
         return input.raise(`Missing @top declaration`);
-    return new GrammarDeclaration(start, rules, tops, tokens, localTokens, context, external, specialized, propSources, prec, mainSkip, scopedSkip, dialects, props, autoDelim);
+    return new GrammarDeclaration(start, -1, rules, tops, tokens, localTokens, context, external, specialized, propSources, prec, mainSkip, scopedSkip, dialects, props, autoDelim);
 }
 function parseRule(input, named) {
     let start = named ? named.start : input.start;
@@ -1097,7 +1106,7 @@ function parseRule(input, named) {
             params.push(parseIdent(input));
         }
     let expr = parseBracedExpr(input);
-    return new RuleDeclaration(start, id, props, params, expr);
+    return new RuleDeclaration(start, -1, id, props, params, expr);
 }
 function parseProps(input) {
     if (input.type != "[")
@@ -1132,7 +1141,7 @@ function parseProp(input) {
                 break;
             }
         }
-    return new Prop(start, at, name, value);
+    return new Prop(start, -1, at, name, value);
 }
 function parseBracedExpr(input) {
     input.expect("{");
@@ -1145,7 +1154,7 @@ function parseExprInner(input) {
     let start = input.start;
     if (input.eat("(")) {
         if (input.eat(")"))
-            return new SequenceExpression(start, none$2, [none$2, none$2]);
+            return new SequenceExpression(start, -1, none$2, [none$2, none$2]);
         let expr = parseExprChoice(input);
         input.expect(")");
         return expr;
@@ -1154,11 +1163,11 @@ function parseExprInner(input) {
         let value = input.value;
         input.next();
         if (value.length == 0)
-            return new SequenceExpression(start, none$2, [none$2, none$2]);
-        return new LiteralExpression(start, value);
+            return new SequenceExpression(start, -1, none$2, [none$2, none$2]);
+        return new LiteralExpression(start, -1, value);
     }
     else if (input.eat("id", "_")) {
-        return new AnyExpression(start);
+        return new AnyExpression(start, -1);
     }
     else if (input.type == "set") {
         let content = input.value, invert = input.string[input.start] == "!";
@@ -1183,7 +1192,7 @@ function parseExprInner(input) {
             }
         }
         input.next();
-        return new SetExpression(start, ranges.sort((a, b) => a[0] - b[0]), invert);
+        return new SetExpression(start, -1, ranges.sort((a, b) => a[0] - b[0]), invert);
     }
     else if (input.type == "at" && (input.value == "specialize" || input.value == "extend")) {
         let { start, value } = input;
@@ -1201,18 +1210,18 @@ function parseExprInner(input) {
             input.raise(`@${value} requires two arguments when its first argument isn't a literal string`);
         }
         input.expect(">");
-        return new SpecializeExpression(start, value, props, token, content);
+        return new SpecializeExpression(start, -1, value, props, token, content);
     }
     else if (input.type == "at" && CharClasses.hasOwnProperty(input.value)) {
-        let cls = new CharClass(input.start, input.value);
+        let cls = new CharClass(input.start, -1, input.value);
         input.next();
         return cls;
     }
     else if (input.type == "[") {
-        let rule = parseRule(input, new Identifier(start, "_anon"));
+        let rule = parseRule(input, new Identifier(start, -1, "_anon"));
         if (rule.params.length)
             input.raise(`Inline rules can't have parameters`, rule.start);
-        return new InlineRuleExpression(start, rule);
+        return new InlineRuleExpression(start, -1, rule);
     }
     else {
         let id = parseIdent(input);
@@ -1220,15 +1229,15 @@ function parseExprInner(input) {
             let rule = parseRule(input, id);
             if (rule.params.length)
                 input.raise(`Inline rules can't have parameters`, rule.start);
-            return new InlineRuleExpression(start, rule);
+            return new InlineRuleExpression(start, -1, rule);
         }
         else {
             if (input.eat(".") && id.name == "std" && CharClasses.hasOwnProperty(input.value)) {
-                let cls = new CharClass(start, input.value);
+                let cls = new CharClass(start, -1, input.value);
                 input.next();
                 return cls;
             }
-            return new NameExpression(start, id, parseArgs(input));
+            return new NameExpression(start, -1, id, parseArgs(input));
         }
     }
 }
@@ -1253,7 +1262,7 @@ function parseExprSuffix(input) {
     for (;;) {
         let kind = input.type;
         if (input.eat("*") || input.eat("?") || input.eat("+"))
-            expr = new RepeatExpression(start, expr, kind);
+            expr = new RepeatExpression(start, -1, expr, kind);
         else
             return expr;
     }
@@ -1275,7 +1284,7 @@ function parseExprSequence(input) {
             else
                 break;
             markers[markers.length - 1] =
-                markers[markers.length - 1].concat(new ConflictMarker(localStart, parseIdent(input), markerType));
+                markers[markers.length - 1].concat(new ConflictMarker(localStart, -1, parseIdent(input), markerType));
         }
         if (endOfSequence(input))
             break;
@@ -1284,7 +1293,7 @@ function parseExprSequence(input) {
     } while (!endOfSequence(input));
     if (exprs.length == 1 && markers.every(ms => ms.length == 0))
         return exprs[0];
-    return new SequenceExpression(start, exprs, markers, !exprs.length);
+    return new SequenceExpression(start, -1, exprs, markers, !exprs.length);
 }
 function parseExprChoice(input) {
     let start = input.start, left = parseExprSequence(input);
@@ -1297,14 +1306,14 @@ function parseExprChoice(input) {
     let empty = exprs.find(s => s instanceof SequenceExpression && s.empty);
     if (empty)
         input.raise("Empty expression in choice operator. If this is intentional, use () to make it explicit.", empty.start);
-    return new ChoiceExpression(start, exprs);
+    return new ChoiceExpression(start, -1, exprs);
 }
 function parseIdent(input) {
     if (input.type != "id")
         input.unexpected();
     let start = input.start, name = input.value;
     input.next();
-    return new Identifier(start, name);
+    return new Identifier(start, -1, name);
 }
 function parsePrecedence(input) {
     let start = input.start;
@@ -1314,12 +1323,12 @@ function parsePrecedence(input) {
     while (!input.eat("}")) {
         if (items.length)
             input.eat(",");
-        items.push({
-            id: parseIdent(input),
-            type: input.eat("at", "left") ? "left" : input.eat("at", "right") ? "right" : input.eat("at", "cut") ? "cut" : null
-        });
+        const id = parseIdent(input);
+        const type = input.eat("at", "left") ? "left" : input.eat("at", "right") ? "right" : input.eat("at", "cut") ? "cut" : null;
+        const item = new PrecDeclarationItem(id.start, input.start, id, type);
+        items.push(item);
     }
-    return new PrecDeclaration(start, items);
+    return new PrecDeclaration(start, input.start, items);
 }
 function parseTokens(input) {
     let start = input.start;
@@ -1337,13 +1346,13 @@ function parseTokens(input) {
             conflicts.push(parseTokenConflict(input));
         }
         else if (input.type == "string") {
-            literals.push(new LiteralDeclaration(input.start, input.expect("string"), parseProps(input)));
+            literals.push(new LiteralDeclaration(input.start, -1, input.expect("string"), parseProps(input)));
         }
         else {
             tokenRules.push(parseRule(input));
         }
     }
-    return new TokenDeclaration(start, precedences, conflicts, tokenRules, literals);
+    return new TokenDeclaration(start, -1, precedences, conflicts, tokenRules, literals);
 }
 function parseLocalTokens(input, start) {
     input.expect("{");
@@ -1361,7 +1370,7 @@ function parseLocalTokens(input, start) {
             tokenRules.push(parseRule(input));
         }
     }
-    return new LocalTokenDeclaration(start, precedences, tokenRules, fallback);
+    return new LocalTokenDeclaration(start, -1, precedences, tokenRules, fallback);
 }
 function parseTokenPrecedence(input) {
     let start = input.start;
@@ -1377,7 +1386,7 @@ function parseTokenPrecedence(input) {
         else
             input.raise(`Invalid expression in token precedences`, expr.start);
     }
-    return new TokenPrecDeclaration(start, tokens);
+    return new TokenPrecDeclaration(start, -1, tokens);
 }
 function parseTokenConflict(input) {
     let start = input.start;
@@ -1391,7 +1400,7 @@ function parseTokenConflict(input) {
     if (!(b instanceof LiteralExpression || b instanceof NameExpression))
         input.raise(`Invalid expression in token conflict`, b.start);
     input.expect("}");
-    return new TokenConflictDeclaration(start, a, b);
+    return new TokenConflictDeclaration(start, -1, a, b);
 }
 function parseExternalTokenSet(input) {
     let tokens = [];
@@ -1409,26 +1418,26 @@ function parseExternalTokens(input, start) {
     let id = parseIdent(input);
     input.expect("id", "from");
     let from = input.expect("string");
-    return new ExternalTokenDeclaration(start, id, from, parseExternalTokenSet(input));
+    return new ExternalTokenDeclaration(start, -1, id, from, parseExternalTokenSet(input));
 }
 function parseExternalSpecialize(input, type, start) {
     let token = parseBracedExpr(input);
     let id = parseIdent(input);
     input.expect("id", "from");
     let from = input.expect("string");
-    return new ExternalSpecializeDeclaration(start, type, token, id, from, parseExternalTokenSet(input));
+    return new ExternalSpecializeDeclaration(start, -1, type, token, id, from, parseExternalTokenSet(input));
 }
 function parseExternalPropSource(input, start) {
     let id = parseIdent(input);
     input.expect("id", "from");
-    return new ExternalPropSourceDeclaration(start, id, input.expect("string"));
+    return new ExternalPropSourceDeclaration(start, -1, id, input.expect("string"));
 }
 function parseExternalProp(input, start) {
     let externalID = parseIdent(input);
     let id = input.eat("id", "as") ? parseIdent(input) : externalID;
     input.expect("id", "from");
     let from = input.expect("string");
-    return new ExternalPropDeclaration(start, id, externalID, from);
+    return new ExternalPropDeclaration(start, -1, id, externalID, from);
 }
 function readString(string) {
     let point = /\\(?:u\{([\da-f]+)\}|u([\da-f]{4})|x([\da-f]{2})|([ntbrf0])|(.))|[^]/yig;
@@ -2926,6 +2935,7 @@ class Builder {
     conflictsFor(markers) {
         let here = Conflicts.none, atEnd = Conflicts.none;
         for (let marker of markers) {
+            //console.dir(marker)
             if (marker.type == "ambig") {
                 here = here.join(new Conflicts(0, [marker.id.name]));
             }
