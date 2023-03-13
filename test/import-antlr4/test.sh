@@ -1,12 +1,15 @@
 #! /usr/bin/env bash
 
-# chdir to project root
-cd "$(dirname "$0")"/../..
-
 test_cases="$@"
 if [ -z "$test_cases" ]; then
     test_cases=$(find test/import-antlr4/ -mindepth 1 -maxdepth 1 -type d)
+else
+    # get absolute paths so we can chdir
+    test_cases=$(echo $test_cases | xargs readlink -f)
 fi
+
+# chdir to project root
+cd "$(dirname "$0")"/../..
 
 # loop test cases
 for dir in $test_cases
@@ -16,14 +19,20 @@ echo
 echo "test case: $dir"
 name=$(basename "$dir")
 
-d="$dir/lezer-parser-$name/src"
-[ -d "$d" ] || mkdir -p "$d"
+if ! [ -d $dir/antlr4-grammar-$name ]; then
+  echo no such dir: $dir/antlr4-grammar-$name
+  exit 1
+fi
 
-parser=$(find $dir/antlr4-grammar-$name -maxdepth 1 -type f -name "*Parser.g4")
-lexer=$(find $dir/antlr4-grammar-$name -maxdepth 1 -type f -name "*Lexer.g4")
+parser=$(find $dir/antlr4-grammar-$name -maxdepth 1 -type f -name "*Parser.g4" 2>/dev/null)
+lexer=$(find $dir/antlr4-grammar-$name -maxdepth 1 -type f -name "*Lexer.g4" 2>/dev/null)
 if [ -z "$parser" ]; then
   parser=$(find $dir/antlr4-grammar-$name -maxdepth 1 -type f -name "*.g4")
 fi
+
+d="$dir/lezer-parser-$name/src"
+[ -d "$d" ] || mkdir -p "$d"
+
 out="$dir/lezer-parser-$name/src/grammar.lezer"
 echo "importing from"
 echo "  $parser"
