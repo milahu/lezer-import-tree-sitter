@@ -1,4 +1,4 @@
-@precedences {
+@precedence {
   prec1234 @left
 }
 

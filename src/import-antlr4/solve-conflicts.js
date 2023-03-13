@@ -374,7 +374,7 @@ for (const conflict of lezerGeneratorError.conflicts) {
   // -> use conflict.term.start
   grammarMagicString.prependLeft(conflict.term.start, "!prec1234 ")
   grammarMagicString.prependLeft(0, [
-    "@precedences {",
+    "@precedence {",
     `  prec1234 ${solution.isLeft ? "@left" : "@right"}`,
     "}",
     "",
