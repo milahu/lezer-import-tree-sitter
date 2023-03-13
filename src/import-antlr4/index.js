@@ -108,7 +108,7 @@ for (const type of parser.nodeSet.types) {
 }
 */
 
-function getParser(source) {
+function getANTLRParserForANTLR(source) {
   const chars = new antlr4.InputStream(source)
   const lexer = new ANTLRv4Lexer(chars)
   const tokens = new antlr4.CommonTokenStream(lexer)
@@ -118,7 +118,7 @@ function getParser(source) {
 
 const sourcePath = process.argv[2]
 const source = readFileSync(sourcePath, "utf8")
-const parser = getParser(source)
+const parser = getANTLRParserForANTLR(source)
 parser.buildParseTrees = true
 const topRule = "grammarSpec"
 const tree = parser[topRule]()
@@ -130,7 +130,7 @@ let lexerTree = null
 const lexerSourcePath = process.argv[3]
 if (lexerSourcePath) {
   lexerSource = readFileSync(lexerSourcePath, "utf8")
-  lexerParser = getParser(lexerSource)
+  lexerParser = getANTLRParserForANTLR(lexerSource)
   lexerParser.buildParseTrees = true
   const topRule = "grammarSpec"
   lexerTree = lexerParser[topRule]()
