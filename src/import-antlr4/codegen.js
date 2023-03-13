@@ -341,6 +341,10 @@ const transpileOfNodeType = {
     // Inverted element set:
     // A set of characters (in a lexer) or terminal tokens (in a parser),
     // that are then used to create the INVERSE set of them.
+    // FIXME negating rules does not work in lezer,
+    // so we must codegen external scanners.
+    // in lezer, we can only negate regex character-classes:
+    // ![a-z] = match all chars except a-z
     node = firstChild(node) // "~"
     node = nextSibling(node)
     const body = formatNode(node, state)
