@@ -31,6 +31,8 @@ import { buildParser, Input as LezerGrammarInput } from "../lezer-generator.js"
 import { assert } from "console"
 import MagicString from "magic-string";
 
+import { formatErrorContext } from "../format-error-context.js"
+
 // global state
 const oldTokens = new Set()
 const randomMax = 5 // lower value -> higher risk of collisions and deadloops
@@ -67,7 +69,31 @@ const grammarMagicString = new MagicString(lezerGrammarText)
 //             this.ast = this.input.parse();
 //         });
 
-const lezerGrammar = new LezerGrammarInput(lezerGrammarText, "grammar.lezer").parse()
+const lezerGrammar = (() => {
+  try {
+    return new LezerGrammarInput(lezerGrammarText, "grammar.lezer").parse()
+  }
+  catch (error) {
+    //console.log(`error.constructor?.name`, error.constructor?.name)
+    //console.log(`error.message`, error.message)
+    if (error.constructor?.name == "GenError") {
+      if (error.message.startsWith("Unexpected token")) {
+        // pretty-print error with context
+        // example: GenError: Unexpected token '(' (grammar.lezer 726:3)
+        // see also: formatErrorContext
+        const [_, tq, t1, t2, file, line, column] = error.message.match(/^Unexpected token ('(.*?)'|"(.*?)") \((.*?) (\d+):(\d+)\)$/)
+        const lezerGrammarLines = lezerGrammarText.split("\n")
+        const numLines = 10
+        const contextLines = lezerGrammarLines.slice(+line - numLines, +line)
+        console.log("-".repeat(20))
+        console.log(contextLines.join("\n"))
+        console.log(" ".repeat(+column) + "^")
+        console.log("-".repeat(20))
+      }
+    }
+    throw error
+  }
+})()
 //console.log("lezerGrammar:"); console.dir(lezerGrammar, {depth: 10}); return
 
 
