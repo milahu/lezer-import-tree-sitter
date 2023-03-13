@@ -35,4 +35,9 @@ echo "  $out"
 echo "node src/import-antlr4 $parser $lexer >$out"
 node src/import-antlr4 $parser $lexer >$out
 
+echo
+echo "solving conflicts to $out.fixed"
+echo "node src/import-antlr4/solve-conflicts.js $out $lexer $parser"
+node src/import-antlr4/solve-conflicts.js $out $lexer $parser
+
 done

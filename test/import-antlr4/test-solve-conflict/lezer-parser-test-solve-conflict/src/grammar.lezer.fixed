@@ -1,0 +1,35 @@
+@precedences {
+  prec1234 @left
+}
+
+@top prog {
+  expr
+}
+
+expr {
+  expr (
+    !prec1234 '*' |
+    '/'
+  ) expr |
+  expr (
+    '+' |
+    '-'
+  ) expr |
+  INT |
+  '(' expr ')'
+}
+
+@tokens {
+
+  NEWLINE {
+    $[\r\n]+
+  }
+
+  INT {
+    $[0-9]+
+  }
+}
+
+@skip {
+  NEWLINE
+}

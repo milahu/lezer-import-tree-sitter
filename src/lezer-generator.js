@@ -357,11 +357,12 @@ function hasProps(props) {
 }
 let termHash = 0;
 class Term {
-    constructor(name, flags, nodeName, props = {}) {
+    constructor(name, flags, nodeName, props = {}, start = -1) {
         this.name = name;
         this.flags = flags;
         this.nodeName = nodeName;
         this.props = props;
+        this.start = start; // term position in grammar text. TODO rename to grammarStart?
         this.hash = ++termHash; // Used for sorting and hashing during parser generation
         this.id = -1; // Assigned in a later stage, used in actual output
         // Filled in only after the rules are simplified, used in automaton.ts
@@ -390,8 +391,10 @@ class TermSet {
         this.eof = this.term("␄", null, 1 /* TermFlag.Terminal */ | 4 /* TermFlag.Eof */);
         this.error = this.term("⚠", "⚠", 8 /* TermFlag.Preserve */);
     }
-    term(name, nodeName, flags = 0, props = {}) {
-        let term = new Term(name, flags, nodeName, props);
+    term(name, nodeName, flags = 0, props = {}, start = -1) {
+        // TODO milahu trace Term "*"
+        //console.log(`400 new term.name`, name, new Error().stack)
+        let term = new Term(name, flags, nodeName, props, start);
         this.terms.push(term);
         this.names[name] = term;
         return term;
@@ -401,8 +404,9 @@ class TermSet {
         this.tops.push(term);
         return term;
     }
-    makeTerminal(name, nodeName, props = {}) {
-        return this.term(name, nodeName, 1 /* TermFlag.Terminal */, props);
+    makeTerminal(name, nodeName, props = {}, start = -1) {
+        // TODO milahu trace Term "*"
+        return this.term(name, nodeName, 1 /* TermFlag.Terminal */, props, start);
     }
     makeNonTerminal(name, nodeName, props = {}) {
         return this.term(name, nodeName, 0, props);
@@ -1498,6 +1502,7 @@ class Pos {
     }
     toString() {
         let parts = this.rule.parts.map(t => t.name);
+        // TODO milahu: trace "·"
         parts.splice(this.pos, 0, "·");
         return `${this.rule.name} -> ${parts.join(" ")}`;
     }
@@ -1687,6 +1692,8 @@ class State {
     addAction(value, positions, conflicts) {
         let conflict = this.addActionInner(value, positions);
         if (conflict) {
+            //console.log("conflict value:", value)
+            //console.log("conflict positions:", positions)
             let conflictPos = this.actionPositions[this.actions.indexOf(conflict)][0];
             let rules = [positions[0].rule.name, conflictPos.rule.name];
             if (conflicts.some(c => c.rules.some(r => rules.includes(r))))
@@ -1696,9 +1703,24 @@ class State {
                 error = `shift/reduce conflict between\n  ${conflictPos}\nand\n  ${positions[0].rule}`;
             else
                 error = `reduce/reduce conflict between\n  ${conflictPos.rule}\nand\n  ${positions[0].rule}`;
+            // TODO milahu: why ".trail(70)"?
+            // TODO milahu: trace "·"
+            // TODO milahu trace value.term
+            //console.log("conflict value.term:", value.term)
+            //throw new Error("todo")
             error += `\nWith input:\n  ${positions[0].trail(70)} · ${value.term} …`;
             error += findConflictOrigin(conflictPos, positions[0]);
-            conflicts.push(new Conflict(error, rules));
+            const c = new Conflict(error, rules, value.term)
+            c.input = `${positions[0].trail(70)} · ${value.term} …`;
+            // TODO better, pass raw data
+            c.origin = findConflictOrigin(conflictPos, positions[0]).slice("Shared origin: ".length);
+            c.ops = (conflict instanceof Shift) ? ["shift", "reduce"] : ["reduce", "reduce"]
+            // conflict between solution 0 and solution 1
+            c.solutions = [
+                ((conflict instanceof Shift) ? conflictPos : conflictPos.rule),
+                positions[0].rule
+            ]
+            conflicts.push(c);
         }
     }
     getGoto(term) {
@@ -1820,9 +1842,10 @@ class Core {
     }
 }
 class Conflict {
-    constructor(error, rules) {
+    constructor(error, rules, term = null) {
         this.error = error;
         this.rules = rules;
+        this.term = term;
     }
 }
 function findConflictOrigin(a, b) {
@@ -1867,14 +1890,22 @@ function buildFullAutomaton(terms, startTerms, first) {
                         throw new GenError("Inconsistent skip sets after " + known.set[0].trail());
                     return known.state;
                 }
+        // TODO milahu: trace pos = set[i]
         let set = closure(core, first);
         let hash = hashPositions(set), found;
         if (!top)
             for (let state of states)
-                if (state.hash == hash && state.hasSet(set))
+                // TODO milahu: trace pos = states[i].set[i] = found.set[i] = state.set[i]
+                if (state.hash == hash && state.hasSet(set)) {
                     found = state;
+                    //console.log("old state", found, {depth: 20})
+                    //console.log("old state.set", set)
+                }
         if (!found) {
             found = new State(states.length, set, 0, skip, hash, top);
+            // TODO milahu: trace pos = states[i].set[i] = found.set[i]
+            //console.log("new state:"); console.dir(found, {depth: 10})
+            //console.log("new state.set", set)
             states.push(found);
             if (timing && states.length % 500 == 0)
                 console.log(`${states.length} states after ${((Date.now() - t0) / 1000).toFixed(2)}s`);
@@ -1887,6 +1918,7 @@ function buildFullAutomaton(terms, startTerms, first) {
         getState(startTerm.rules.map(rule => new Pos(rule, 0, [terms.eof], none$1, startSkip, null).finish()), startTerm);
     }
     let conflicts = [];
+    // TODO milahu: trace pos = states[i].set[i]
     for (let filled = 0; filled < states.length; filled++) {
         let state = states[filled];
         let byTerm = [], byTermPos = [], atEnd = [];
@@ -1912,8 +1944,16 @@ function buildFullAutomaton(terms, startTerms, first) {
             if (term.terminal) {
                 let set = applyCut(positions);
                 let next = getState(set);
-                if (next)
-                    state.addAction(new Shift(term, next), byTermPos[i], conflicts);
+                // TODO milahu: trace conflicts
+                // TODO milahu trace value = new Shift(term, next)
+                if (next) {
+                    //state.addAction(new Shift(term, next), byTermPos[i], conflicts);
+                    const value = new Shift(term, next)
+                    if (value.term.name == '"*"') {
+                        //console.log(`shift value.term:`, value.term)
+                    }
+                    state.addAction(value, byTermPos[i], conflicts);
+                }
             }
             else {
                 let goto = getState(positions);
@@ -1925,7 +1965,75 @@ function buildFullAutomaton(terms, startTerms, first) {
         for (let pos of atEnd)
             for (let ahead of pos.ahead) {
                 let count = state.actions.length;
-                state.addAction(new Reduce(ahead, pos.rule), [pos], conflicts);
+                // TODO milahu: trace conflicts
+                // TODO milahu trace value = new Reduce(ahead, pos.rule)
+                // TODO milahu trace pos.rule.parts[1] = Term { name: '"*"' }
+                const value = new Reduce(ahead, pos.rule)
+                if (value.term.name == '"*"') {
+                    //console.log(`reduce value.term = ahead:`, value.term)
+                    //console.log(`reduce pos.rule:`, pos.rule)
+                    /*
+reduce pos.rule: <ref *1> Rule {
+  name: Term {
+    name: 'expr',
+    flags: 0,
+    nodeName: null,
+    props: {},
+    hash: 7,
+    id: 6,
+    rules: [ [Circular *1], [Rule], [Rule], [Rule], [Rule], [Rule] ]
+  },
+  parts: [
+    Term {
+      name: 'expr',
+      flags: 0,
+      nodeName: null,
+      props: {},
+      hash: 7,
+      id: 6,
+      rules: [Array]
+    },
+    Term {
+      name: '"*"',
+      flags: 1,
+      nodeName: null,
+      props: {},
+      hash: 8,
+      id: 7,
+      rules: []
+    },
+    Term {
+      name: 'expr',
+      flags: 0,
+      nodeName: null,
+      props: {},
+      hash: 7,
+      id: 6,
+      rules: [Array]
+    }
+  ],
+  conflicts: [
+    Conflicts { precedence: 0, ambigGroups: [], cut: 0 },
+    Conflicts { precedence: 0, ambigGroups: [], cut: 0 },
+    Conflicts { precedence: 0, ambigGroups: [], cut: 0 },
+    Conflicts { precedence: 0, ambigGroups: [], cut: 0 }
+  ],
+  skip: Term {
+    name: '%mainskip',
+    flags: 0,
+    nodeName: null,
+    props: {},
+    hash: 4,
+    id: 5,
+    rules: []
+  },
+  id: 1
+}
+                    */
+                    //console.log(`reduce ahead:`, ahead) // == value.term
+                }
+                state.addAction(value, [pos], conflicts);
+                //state.addAction(new Reduce(ahead, pos.rule), [pos], conflicts);
                 if (state.actions.length == count)
                     replaced = true;
             }
@@ -1941,8 +2049,13 @@ function buildFullAutomaton(terms, startTerms, first) {
                     state.goto.splice(i--, 1);
             }
     }
-    if (conflicts.length)
-        throw new GenError(conflicts.map(c => c.error).join("\n\n"));
+    if (conflicts.length) {
+        //console.dir(conflicts, {depth: 5})
+        //throw new GenError(conflicts.map(c => c.error).join("\n\n"));
+        const error = new GenError(conflicts.map(c => c.error).join("\n\n"));
+        error.conflicts = conflicts
+        throw error
+    }
     // Resolve alwaysReduce and sort actions
     for (let state of states)
         state.finish();
@@ -2660,8 +2773,9 @@ class Builder {
             skippedTypes
         };
     }
-    makeTerminal(name, tag, props) {
-        return this.terms.makeTerminal(this.terms.uniqueName(name), tag, props);
+    makeTerminal(name, tag, props, start = -1) {
+        // TODO milahu trace Term "*"
+        return this.terms.makeTerminal(this.terms.uniqueName(name), tag, props, start);
     }
     computeForceReductions(states, skipInfo) {
         // This finds a forced reduction for every state, trying to guard
@@ -2844,8 +2958,10 @@ class Builder {
     }
     defineRule(name, choices) {
         let skip = this.currentSkip[this.currentSkip.length - 1];
-        for (let choice of choices)
+        for (let choice of choices) {
+            //console.log(`2940 new rule.name`, name)
             this.rules.push(new Rule(name, choice.terms, choice.ensureConflicts(), skip));
+        }
     }
     resolve(expr) {
         for (let built of this.built)
@@ -2918,12 +3034,16 @@ class Builder {
             return expr.kind == "+" ? [repeated] : [Parts.none, repeated];
         }
         else if (expr instanceof ChoiceExpression) {
+            // TODO milahu trace Term "*"
             return expr.exprs.reduce((o, e) => o.concat(this.normalizeExpr(e)), []);
         }
         else if (expr instanceof SequenceExpression) {
             return this.normalizeSequence(expr);
         }
         else if (expr instanceof LiteralExpression) {
+            // TODO milahu trace Term "*"
+            // TODO keep expr.start
+            //console.log(`3030 LiteralExpression expr`, expr)
             return [p(this.tokens.getLiteral(expr))];
         }
         else if (expr instanceof NameExpression) {
@@ -3670,7 +3790,10 @@ class MainTokenSet extends TokenSet {
         let decl = this.ast ? this.ast.literals.find(l => l.literal == expr.value) : null;
         if (decl)
             ({ name, props, dialect, exported } = this.b.nodeInfo(decl.props, "da", expr.value));
-        let term = this.b.makeTerminal(id, name, props);
+        // TODO milahu trace Term "*"
+        // TODO keep expr.start
+        //props._start = expr.start
+        let term = this.b.makeTerminal(id, name, props, expr.start);
         if (dialect != null)
             (this.byDialect[dialect] || (this.byDialect[dialect] = [])).push(term);
         if (exported)
@@ -4047,8 +4170,11 @@ function inlineRules(rules, preserve) {
                 newRules.push(rule);
                 continue;
             }
+            // TODO milahu: trace rule.parts
             function expand(at, conflicts, parts) {
                 if (at == rule.parts.length) {
+                    // TODO milahu: trace source location of rule
+                    //console.log(`4150 new rule.name`, rule.name)
                     newRules.push(new Rule(rule.name, parts, conflicts, rule.skip));
                     return;
                 }
@@ -4099,8 +4225,14 @@ function mergeRules(rules) {
     let newRules = [];
     for (let rule of rules)
         if (!merged[rule.name.name]) {
-            newRules.push(rule.parts.every(p => !merged[p.name]) ? rule :
-                new Rule(rule.name, rule.parts.map(p => merged[p.name] || p), rule.conflicts, rule.skip));
+            //newRules.push(rule.parts.every(p => !merged[p.name]) ? rule :
+            //    new Rule(rule.name, rule.parts.map(p => merged[p.name] || p), rule.conflicts, rule.skip));
+            let newRule = rule
+            if (!(rule.parts.every(p => !merged[p.name]))) {
+                //console.log(`4200 new rule.name`, rule.name)
+                newRule = new Rule(rule.name, rule.parts.map(p => merged[p.name] || p), rule.conflicts, rule.skip)
+            }
+            newRules.push(newRule);
         }
     return newRules;
 }
@@ -4142,3 +4274,4 @@ function isExported(rule) {
 }
 
 export { GenError, buildParser, buildParserFile };
+export { Input, parseGrammar }
