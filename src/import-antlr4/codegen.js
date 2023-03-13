@@ -401,6 +401,7 @@ transpileOfNodeType.LexerElementContext = (n, s) => unwrapNode(n, s) + " " // ad
 //transpileOfNodeType.LexerAtomContext = unwrapNode // can be regex
 //transpileOfNodeType.TerminalContext = unwrapNode
 
+transpileOfNodeType.ElementOptionsContext = ignoreNode
 
 /*
 

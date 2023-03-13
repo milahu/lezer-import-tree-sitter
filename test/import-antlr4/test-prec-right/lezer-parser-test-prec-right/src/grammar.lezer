@@ -1,0 +1,26 @@
+@top prog {
+  expr
+}
+
+expr {
+  expr '*' expr |
+  expr '+' expr |
+  expr '?' expr ':' expr |
+  expr '=' expr |
+  INT
+}
+
+@tokens {
+
+  NEWLINE {
+    $[\r\n]+
+  }
+
+  INT {
+    $[0-9]+
+  }
+}
+
+@skip {
+  NEWLINE
+}

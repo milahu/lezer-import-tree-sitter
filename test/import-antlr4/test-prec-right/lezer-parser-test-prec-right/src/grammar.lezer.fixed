@@ -1,0 +1,33 @@
+@precedence {
+  prec1 @left
+, prec2 @left
+, prec3 @right
+, prec4 @right
+}
+
+@top prog {
+  expr
+}
+
+expr {
+  expr !prec1 '*' expr |
+  expr !prec2 '+' expr |
+  expr !prec3 '?' expr ':' expr |
+  expr !prec4 '=' expr |
+  INT
+}
+
+@tokens {
+
+  NEWLINE {
+    $[\r\n]+
+  }
+
+  INT {
+    $[0-9]+
+  }
+}
+
+@skip {
+  NEWLINE
+}

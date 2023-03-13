@@ -1,3 +1,21 @@
+/*
+note: parsing is left-associative by default in ANTLR4.
+in contrast, lezer-parser can throw conflict errors,
+which require adding explicit "@left" precedence markers.
+
+in ANTLR4, right-associative parsing works
+by adding a "<assoc=right>" marker before the rule.
+https://github.com/antlr/antlr4/blob/master/doc/left-recursion.md
+
+e : e '*' e
+  | e '+' e
+  | <assoc=right> e '?' e ':' e
+  | <assoc=right> e '=' e
+  | INT
+  ;
+
+*/
+
 import fs from "fs"
 import path from "path"
 import child_process from "child_process"
@@ -74,7 +92,7 @@ catch (error) {
   // error.conflicts[0].term // TODO term.start is conflict location in grammar text
 }
 
-console.log("lezerGeneratorError:"); console.log(lezerGeneratorError)
+//console.log("lezerGeneratorError:"); console.log(lezerGeneratorError)
 //console.log("lezerGeneratorError.message:"); console.log(lezerGeneratorError.message)
 
 
@@ -102,7 +120,10 @@ function assert(cond) {
 
 
 // loop conflicts
+let doneFirstConflict = false
 for (const conflict of lezerGeneratorError.conflicts) {
+
+  if (doneFirstConflict) console.log("---")
 
   conflict.inputTokens = conflict.input.split(" ")
   //console.log(`conflict.inputTokens:`, conflict.inputTokens)
@@ -136,23 +157,53 @@ for (const conflict of lezerGeneratorError.conflicts) {
     // right-most token always overlaps with right-most inputToken "…"
     // -> right-most index is (tokens.length - 2)
     let rightOverlap = 1
-    const offset = conflict.inputTokens.length - tokens.length
-    for (let i = (tokens.length - 2); i >= 0; i--) {
-      //console.log(`right overlap ${i}: ${tokens[i]} vs ${conflict.inputTokens[offset + i]}`)
-      if (tokens[i] == conflict.inputTokens[offset + i]) {
-        rightOverlap++
+    // skip right-most tokens in the right solution
+    // solution can be longer than 3 tokens
+    // overlap is always only 3 tokens
+    // (4 tokens when also counting the position marker "·")
+    // see also test/import-antlr4/test-prec-right/readme.md
+    //console.log(`160 tokens:`, tokens)
+    let skipRightTokens
+    for (skipRightTokens = 1; skipRightTokens < (tokens.length - 1); skipRightTokens++) {
+      rightOverlap = 1
+      const rightOffset = conflict.inputTokens.length - tokens.length - 1 + skipRightTokens
+      /*
+      console.log(`rightOffset:`, rightOffset)
+      console.log(`right overlap: skipTokens=${skipRightTokens}`)
+      const tokStr = tokens.slice(0, (tokens.length - 1 - skipRightTokens + 1)).join(" ")
+      const inpStr = conflict.inputTokens.slice(0, -1).join(" ")
+      const maxLen = Math.max(tokStr.length, inpStr.length)
+      console.log(`tokens:`, tokStr.padStart(maxLen) + "   " + tokens.slice((tokens.length - 1 - skipRightTokens + 1)).join(" "))
+      console.log(`input :`, inpStr.padStart(maxLen) + "   …")
+      */
+      for (let i = (tokens.length - 1 - skipRightTokens); i >= 0; i--) {
+        //console.log(`right overlap ${i}: ${tokens[i]} vs ${conflict.inputTokens[rightOffset + i]}`)
+        if (tokens[i] == conflict.inputTokens[rightOffset + i]) {
+          rightOverlap++
+        }
+        else {
+          break
+        }
       }
-      else {
+      if (rightOverlap == 4) {
+        //console.log(`right overlap: done at skipTokens=${skipRightTokens}`)
         break
       }
     }
-    const isRight = tokens.length == rightOverlap
-    //console.dir({ tokens, inputTokens: conflict.inputTokens, leftOverlap, rightOverlap })
+    //const isRight = tokens.length == rightOverlap
+    const isRight = (rightOverlap == 4)
+    //console.log(`190 tokens:`); console.dir({ tokens, inputTokens: conflict.inputTokens, leftOverlap, rightOverlap })
     assert(leftOverlap != rightOverlap)
     if (isRight) {
+      //console.log(`patching inputTokens. before:`, conflict.inputTokens.join(" "))
       // patch the right-most input token
       assert(conflict.inputTokens.slice(-1)[0] == "…")
-      conflict.inputTokens[conflict.inputTokens.length - 1] = tokens[tokens.length - 1]
+      conflict.inputTokens.pop()
+      // pushing all tokens is too much
+      conflict.inputTokens.push(...tokens.slice(tokens.length - skipRightTokens))
+      // push only 1 token, to match the expected resultText
+      //conflict.inputTokens.push(tokens[tokens.length - skipRightTokens])
+      //console.log(`patching inputTokens. after :`, conflict.inputTokens.join(" "))
     }
 
     const resultText = ((isLeft) => {
@@ -363,7 +414,7 @@ for (const conflict of lezerGeneratorError.conflicts) {
 
   let solution = conflict.solutions.find(solution => (
     solution.resultText != null &&
-    solution.resultText.toLowerCase() == antlrResultText.toLowerCase()
+    solution.resultText.toLowerCase().slice(0, antlrResultText.length) == antlrResultText.toLowerCase()
   ))
   if (!solution) {
     solution = conflict.solutions.find(solution => solution.resultText == null)
@@ -416,8 +467,8 @@ for (const conflict of lezerGeneratorError.conflicts) {
     }
     precName = newPrecName()
     const lastPrecDeclaration = lezerGrammar.precedences.items.slice(-1)[0]
-    console.log("lastPrecDeclaration:", lastPrecDeclaration.constructor.name); console.dir(lastPrecDeclaration)
-    console.log("lezerGrammar.precedences:"); console.dir(lezerGrammar.precedences)
+    //console.log("lastPrecDeclaration:", lastPrecDeclaration.constructor.name); console.dir(lastPrecDeclaration)
+    //console.log("lezerGrammar.precedences:"); console.dir(lezerGrammar.precedences)
     // lezer-generator.js -> function parsePrecedence
     // TODO what is "@cut"? seen in "function parsePrecedence"
     grammarMagicString.appendRight(lastPrecDeclaration.to, (
@@ -428,6 +479,8 @@ for (const conflict of lezerGeneratorError.conflicts) {
   // TODO find the conflict position "·" in lezer grammar
   // -> use conflict.term.start
   grammarMagicString.prependLeft(conflict.term.start, `!${precName} `)
+
+  doneFirstConflict = true
 
 } // loop conflicts
 
@@ -440,6 +493,8 @@ if (lezerGrammarTextPrevious == lezerGrammarText) {
   console.log(`no change. stopping the grammar generations loop`)
   break // stop: loop grammar generations
 }
+
+console.log("------")
 
 } // loop grammar generations
 
@@ -456,6 +511,7 @@ const fixedExtension = ".fixed"
 const lezerGrammarPathFixed = lezerGrammarPath + fixedExtension
 fs.writeFileSync(lezerGrammarPathFixed, lezerGrammarText, "utf8")
 
+console.log("------")
 console.log(`done ${lezerGrammarPathFixed}`)
 console.log(`compare:`)
 console.log(`diff -u --color=auto ${lezerGrammarPath}{,${fixedExtension}}`)
