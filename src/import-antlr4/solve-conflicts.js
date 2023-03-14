@@ -14,6 +14,10 @@ e : e '*' e
   | INT
   ;
 
+
+
+FIXME conflict.input can start with "…"
+
 */
 
 import fs from "fs"
@@ -23,6 +27,8 @@ import child_process from "child_process"
 import * as antlrFormat from "./format.js"
 
 import antlr4 from 'antlr4';
+
+import lodash from "lodash"
 
 // TODO feature request to https://github.com/lezer-parser/lezer/issues
 // export "class Input", maybe rename to GrammarInput
@@ -35,8 +41,13 @@ import { formatErrorContext } from "../format-error-context.js"
 
 // global state
 const oldTokens = new Set()
-const randomMax = 5 // lower value -> higher risk of collisions and deadloops
+
+// lower value -> higher risk of collisions and deadloops
+// higher value -> higher risk of deadloops
 // TODO linear token generator -> no deadloops
+//const randomMax = 5
+//const randomMax = 2 // deadloop?
+const randomMax = 3
 
 main()
 
@@ -69,6 +80,7 @@ const grammarMagicString = new MagicString(lezerGrammarText)
 //             this.ast = this.input.parse();
 //         });
 
+//console.log(`parsing grammar ...`)
 const lezerGrammar = (() => {
   try {
     return new LezerGrammarInput(lezerGrammarText, "grammar.lezer").parse()
@@ -95,13 +107,18 @@ const lezerGrammar = (() => {
   }
 })()
 //console.log("lezerGrammar:"); console.dir(lezerGrammar, {depth: 10}); return
+//console.log(`parsing grammar done`)
 
 
 
-let lezerParser = null
+// this is slow on large grammars
+// TODO write a faster @lezer/generator in native code (Rust),
+// based on tree-sitter generator
+// https://github.com/tree-sitter/tree-sitter/tree/master/cli/src/generate
+console.log(`building parser ...`)
 let lezerGeneratorError = null
 try {
-  lezerParser = buildParser(lezerGrammarText)
+  buildParser(lezerGrammarText)
   console.log("no conflicts -> done")
   break // stop: loop grammar generations
 }
@@ -117,9 +134,10 @@ catch (error) {
   // error.conflicts[0].rules
   // error.conflicts[0].term // TODO term.start is conflict location in grammar text
 }
+console.log(`building parser done`)
 
 //console.log("lezerGeneratorError:"); console.log(lezerGeneratorError)
-//console.log("lezerGeneratorError.message:"); console.log(lezerGeneratorError.message)
+console.log("lezerGeneratorError.message:"); console.log(lezerGeneratorError.message)
 
 
 
@@ -162,9 +180,11 @@ for (const conflict of lezerGeneratorError.conflicts) {
 
   if (doneFirstConflict) console.log("---")
 
+  console.log(`conflict:`); console.dir(conflict)
+
   // trim because input can start with " · "
   conflict.inputTokens = conflict.input.trim().split(" ")
-  //console.log(`conflict.inputTokens:`, conflict.inputTokens)
+  console.log(`conflict.inputTokens:`, conflict.inputTokens)
   // "·" = conflict position between 2 tokens,
   // usually left of the "problematic" token
 
@@ -180,6 +200,21 @@ for (const conflict of lezerGeneratorError.conflicts) {
     const tokens = text.trim().split(" ")
     const source = tokens.shift()
     assert(tokens.shift() == "->")
+    const isEmpty = (tokens.length == 0)
+    if (isEmpty) {
+      return {
+        op,
+        text,
+        source,
+        tokens,
+        leftOverlap: 0,
+        rightOverlap: 0,
+        isLeft: false,
+        isRight: false,
+        isEmpty,
+        resultText: "",
+      }
+    }
     // is left solution?
     let leftOverlap = 0
     for (let i = 0; i < tokens.length; i++) {
@@ -274,6 +309,7 @@ for (const conflict of lezerGeneratorError.conflicts) {
       rightOverlap,
       isLeft,
       isRight,
+      isEmpty,
       resultText,
     }
   })
@@ -281,13 +317,19 @@ for (const conflict of lezerGeneratorError.conflicts) {
 
   conflict.originLines = conflict.origin.split("\n")
 
-  conflict.originTree = createNode("@top")
+  const originTopName = conflict.originLines[0].split(" ")[0]
+  conflict.originTree = createNode(originTopName)
 
   let node = conflict.originTree
 
+  let lastLineIndent = ""
   for (const originLine of conflict.originLines) {
     //console.log(`originLine: ${originLine}`)
     const [_, lineIndent, lineRest] = originLine.match(/^( *)(.*)$/)
+    if (lineIndent.length < lastLineIndent.length) {
+      // on decrease of lineIndent, change the parent node
+      throw new Error(`indent decreased from ${lastLineIndent.length} to ${lineIndent.length} -> fixme: change parent node`)
+    }
     //console.log(`lineRest: ${lineRest}`)
     const lineTokens = lineRest.split(" ")
     //console.log(`lineTokens:`, lineTokens)
@@ -315,6 +357,7 @@ for (const conflict of lezerGeneratorError.conflicts) {
     }
     //console.log(`nextParentIdx: ${nextParentIdx}`)
     node = node.children[nextParentIdx]
+    lastLineIndent = lineIndent
   }
 
   // note: this tree is derived only from conflict.origin
@@ -322,9 +365,12 @@ for (const conflict of lezerGeneratorError.conflicts) {
 
   // note: wrong tree. some nodes have wrong associativity
   // -> source of truth is conflict.inputTokens
-  //console.log("conflict.originTree:"); console.dir(conflict.originTree, {depth: null})
+  // but the "wrong tree" is no problem,
+  // because we simply join all nodes to a string
+  console.log("conflict.originTree:"); console.dir(conflict.originTree, {depth: null})
 
-  conflict.originSample = getOriginSample(conflict.originTree, lezerGrammar)
+  // TODO generate many samples
+  //conflict.originSample = getOriginSample(conflict.originTree, lezerGrammar)
 
   //console.log("conflict.originSample:"); console.log(conflict.originSample)
 
@@ -347,8 +393,8 @@ for (const conflict of lezerGeneratorError.conflicts) {
     return 1
   }
 
-  const antlrBasePath = path.resolve(process.cwd(), process.argv[3]).replace(/\.g4$/, "")
-  //console.log(`antlrBasePath:`, antlrBasePath)
+  const antlrBasePath = path.resolve(process.cwd(), process.argv[3]).replace(/^(.*?)(Lexer)?\.g4$/, "$1")
+  console.log(`antlrBasePath:`, antlrBasePath)
 
   const antlrLexerPath = antlrBasePath + "Lexer.js"
   const antlrParserPath = antlrBasePath + "Parser.js"
@@ -411,14 +457,52 @@ for (const conflict of lezerGeneratorError.conflicts) {
     return parser
   }
 
-  const antlrParser = getANTLRParser(conflict.originSample)
-  antlrParser.buildParseTrees = true
-  // FIXME dynamic
-  const topRule = "expr"
-  const tree = antlrParser[topRule]()
+  // origin samples loop
+  //const originSampleIdxMax = 100
+  const originSampleIdxMax = 10
+  for (let originSampleIdx = 0; originSampleIdx < originSampleIdxMax; originSampleIdx++) {
+    const originSample = getOriginSample(conflict.originTree, lezerGrammar)
 
-  const state = { source: conflict.originSample }
-  //console.log("antlr tree:"); antlrFormat.printNode(tree, state)
+    console.log(`origin sample ${originSampleIdx}: input:`, conflict.inputTokens.join(" "))
+    console.log(`origin sample ${originSampleIdx}: sample:`, originSample)
+
+    // TODO why "no viable alternative at input"? why different input than originSample?
+    const antlrParser = getANTLRParser(originSample)
+    antlrParser.buildParseTrees = true
+    // TODO verify topRule. maybe we must use the topRule of sharedOrigin
+    const topRule = antlrParser.ruleNames[0]
+    const tree = antlrParser[topRule]()
+
+    const state = { source: originSample }
+    //console.log("antlr tree:"); antlrFormat.printNode(tree, state)
+
+    const antlrResultText = formatAntlrNode(tree)
+
+    console.log(`origin sample ${originSampleIdx}: solution 1:`, conflict.solutions[0].resultText)
+    console.log(`origin sample ${originSampleIdx}: expected  :`, antlrResultText)
+    console.log(`origin sample ${originSampleIdx}: solution 2:`, conflict.solutions[1].resultText)
+
+    let solution = conflict.solutions.find(solution => (
+      solution.resultText != null &&
+      solution.resultText.toLowerCase().slice(0, antlrResultText.length) == antlrResultText.toLowerCase()
+    ))
+    if (!solution) {
+      solution = conflict.solutions.find(solution => solution.resultText == null)
+    }
+    if (!solution) {
+      console.log(`origin sample ${originSampleIdx}: no solution was found`)
+      continue
+      //console.log("conflict"); console.dir(conflict, {depth: 3})
+      //return 1
+    }
+
+    const solutionIdx = conflict.solutions.indexOf(solution)
+    console.log(`origin sample ${originSampleIdx}: using solution ${solutionIdx + 1}`)
+    //console.log("solution:", solution)
+    conflict.solution = solution
+    break
+
+  } // origin samples loop
 
   function getLezerName(name) {
     if (name.endsWith("Context")) {
@@ -449,30 +533,6 @@ for (const conflict of lezerGeneratorError.conflicts) {
     return name
   }
 
-  const antlrResultText = formatAntlrNode(tree)
-
-  console.log(`input:`, conflict.inputTokens.join(" "))
-  console.log("solution 1:", conflict.solutions[0].resultText)
-  console.log("expected  :", antlrResultText)
-  console.log("solution 2:", conflict.solutions[1].resultText)
-
-  let solution = conflict.solutions.find(solution => (
-    solution.resultText != null &&
-    solution.resultText.toLowerCase().slice(0, antlrResultText.length) == antlrResultText.toLowerCase()
-  ))
-  if (!solution) {
-    solution = conflict.solutions.find(solution => solution.resultText == null)
-  }
-  if (!solution) {
-    console.log(`error: no solution was found`)
-    console.log("conflict"); console.dir(conflict, {depth: null})
-    return 1
-  }
-
-  const solutionIdx = conflict.solutions.indexOf(solution)
-  console.log(`using solution ${solutionIdx + 1}`)
-  //console.log("solution:", solution)
-
 
 
   // add precedence marker to lezer grammar
@@ -485,9 +545,28 @@ for (const conflict of lezerGeneratorError.conflicts) {
   ) {
     // create new precedence block
     precName = "prec1"
+    const attr = (
+      conflict.solution.isLeft ? " @left" :
+      conflict.solution.isRight ? " @right" :
+      conflict.solution.isEmpty ? " @cut" : // TODO verify
+      // https://lezer.codemirror.net/docs/guide/#precedence
+      // > It is also possible,
+      // > instead of specifying an associativity for a given precedence,
+      // > to make it a cut operator by using the keyword @cut.
+      // > A cut operator will override other interpretations
+      // > even though no conflict was detected yet.
+      // @precedence { e1 @cut }
+      // @top Program { e+ }
+      // e { e1 | e2 }
+      // e1 { !e1 "x" ... }
+      // e2 { "x" ... }
+      // -> solve ambiguity of the keyword "x"
+      // example: statement { FunctionDeclaration | FunctionExpression }
+      ""
+    )
     grammarMagicString.prependLeft(0, [
       "@precedence {",
-      `  ${precName} ${solution.isLeft ? "@left" : "@right"}`,
+      `  ${precName}${attr}`,
       "}",
       "",
     ].map(line => line + "\n").join(""))
@@ -515,8 +594,14 @@ for (const conflict of lezerGeneratorError.conflicts) {
     //console.log("lezerGrammar.precedences:"); console.dir(lezerGrammar.precedences)
     // lezer-generator.js -> function parsePrecedence
     // TODO what is "@cut"? seen in "function parsePrecedence"
+    const attr = (
+      conflict.solution.isLeft ? " @left" :
+      conflict.solution.isRight ? " @right" :
+      conflict.solution.isEmpty ? " @cut" : // TODO verify
+      ""
+    )
     grammarMagicString.appendRight(lastPrecDeclaration.to, (
-      `, ${precName} ${solution.isLeft ? "@left" : "@right"}\n`
+      `, ${precName}${attr}\n`
     ))
   }
 
@@ -590,35 +675,88 @@ function todoReduceRuleNodeHandler(node) {
 // broad-first search
 // first pass: replace references to other rules
 // TODO cache result, dont re-visit fully-reduced tree
-function reduceRuleNodeInner(node, depth, parent, key, lezerGrammar) {
-  const terminalNames = new Set(["TokenWrapper"])
+function reduceRuleNodeInner(node, maxDepth = 100, depth = 0, globalState = {}, parent, key, lezerGrammar) {
+  //console.log(`reduce ${maxDepth}: ${" ".repeat(depth)}${node.constructor.name} ${node.start}`)
+  const terminalNames = new Set([
+    "TokenWrapper",
+    "ReducedExprWrapper",
+    "SetExpression",
+    "LiteralExpression",
+  ])
+  class ReducedExprWrapper {
+    constructor(expr) {
+      this.expr = expr
+      this.start = expr.start
+    }
+  }
+  class TokenWrapper {
+    constructor(token, start) {
+      this.token = token
+      this.start = start
+    }
+  }
   const reduceRuleNodeHandlers = {
-    RuleDeclaration(node, depth, parent, key) { // root node
-      if (depth < 0) return
+    RuleDeclaration(node, depth, parent, key, lezerGrammar) { // root node
+      if (depth > maxDepth) return
       const child = node.expr
       if (terminalNames.has(child.constructor.name)) {
         parent[key] = child
+        globalState.reduced = true
         return
       }
-      reduceRuleNodeInner(child, depth-1, node, "expr", lezerGrammar)
+      reduceRuleNodeInner(child, maxDepth, depth+1, globalState, node, "expr", lezerGrammar)
     },
-    ChoiceExpression(node, depth, parent, key) {
-      if (depth < 0) return
+    ChoiceExpression(node, depth, parent, key, lezerGrammar) {
+      if (depth > maxDepth) return
       //console.log("ChoiceExpression: node.exprs:"); console.log(node.exprs)
       const firstTerminal = node.exprs.find(child => terminalNames.has(child.constructor.name))
       if (firstTerminal) {
         // reduce
         parent[key] = firstTerminal
+        globalState.reduced = true
         return
       }
-      node.exprs.forEach((child, idx) => reduceRuleNodeInner(child, depth-1, node.exprs, idx, lezerGrammar))
+      node.exprs.forEach((child, idx) => reduceRuleNodeInner(child, maxDepth, depth+1, globalState, node.exprs, idx, lezerGrammar))
     },
-    SequenceExpression(node, depth, parent, key) {
-      if (depth < 0) return
-      node.exprs.forEach((child, idx) => reduceRuleNodeInner(child, depth-1, node.exprs, idx, lezerGrammar))
+    SequenceExpression(node, depth, parent, key, lezerGrammar) {
+      if (depth > maxDepth) return
+      node.exprs.forEach((child, idx) => reduceRuleNodeInner(child, maxDepth, depth+1, globalState, node.exprs, idx, lezerGrammar))
+      if (node.exprs.every(child => terminalNames.has(child.constructor.name))) {
+        // all child nodes have been reduced
+        parent[key] = new ReducedExprWrapper(node)
+        globalState.reduced = true
+      }
     },
-    NameExpression(node, depth, parent, key) {
-      if (depth < 0) return
+    RepeatExpression(node, depth, parent, key, lezerGrammar) {
+      //const randomMax = 3 // 5 is too much?
+      if (depth > maxDepth) return
+      // node.kind: * or + or ?
+      // random length:
+      const min = (node.kind == "+") ? 1 : 0
+      const max = (node.kind == "?") ? 1 : (1 + Math.round(Math.random() * randomMax))
+      const length = Math.round(min + Math.random() * (max - min))
+      /*
+      // minimal length:
+      // problem: result is too short, can be empty
+      const min = (node.kind == "+") ? 1 : 0
+      const length = min
+      */
+      const exprs = Array.from({length}).map(() => node.expr)
+      class SequenceExpression {}
+      const node2 = new SequenceExpression()
+      for (const key in node) {
+        node2[key] = node[key]
+      }
+      delete node2.expr
+      delete node2.kind
+      node2.exprs = exprs
+      //console.log(`RepeatExpression:`, node)
+      //console.log(`RepeatExpression replaced with SequenceExpression:`, node2)
+      parent[key] = node2
+      globalState.reduced = true
+    },
+    NameExpression(node, depth, parent, key, lezerGrammar) {
+      if (depth > maxDepth) return
       // expand
       // resolve name to node
       const name = node.id.name
@@ -628,7 +766,9 @@ function reduceRuleNodeInner(node, depth, parent, key, lezerGrammar) {
         // TODO deep copy?
         //node.rule = rule
         parent[key] = rule
-        reduceRuleNodeInner(rule, depth-1, parent, key, lezerGrammar)
+        //console.log(`reduceRuleNodeInner ${maxDepth}: NameExpression: replaced node`, node); console.log(`.. with rule`, rule)
+        globalState.reduced = true
+        reduceRuleNodeInner(rule, maxDepth, depth+1, globalState, parent, key, lezerGrammar)
       }
       else {
         // TODO? tokens.literals
@@ -639,77 +779,151 @@ function reduceRuleNodeInner(node, depth, parent, key, lezerGrammar) {
         if (token) {
           //console.log(`resolved name ${name} to token:`); console.log(token)
           //node.token = token
-          class TokenWrapper {
-            constructor(token) {
-              this.token = token
-            }
-          }
           //parent[key] = token
-          parent[key] = new TokenWrapper(token)
+          // no. token can be a non-terminal "token rule" (no?)
+          parent[key] = new TokenWrapper(token, token.start)
+          // TODO why not?
+          //parent[key] = token
+          //console.log(`reduceRuleNodeInner ${maxDepth}: NameExpression: replaced node`, node); console.log(`... with`, parent[key])
+          globalState.reduced = true
         }
         else {
-          console.log(`lezerGrammar.rules:`)
-          console.dir(lezerGrammar.rules, {depth: null})
-          console.log(`lezerGrammar.tokens:`)
-          console.dir(lezerGrammar.tokens, {depth: null})
+          console.log(`lezerGrammar.rules:`, lezerGrammar.rules.map(rule => rule.id.name).join(" "))
+          console.log(`lezerGrammar.tokens:`, lezerGrammar.tokens.rules.map(rule => rule.id.name).join(" "))
           throw new Error(`not found rule or token by name ${name}`)
         }
       }
     },
-    LiteralExpression(node, depth, parent, key) {
+    SetExpression() {
+      // regex character-class, example: [a-z]
+      return // noop. node is terminal
+    },
+    LiteralExpression() {
       return // noop. node is terminal
     },
     TokenWrapper() {
       return // noop. node is terminal
     },
+    ReducedExprWrapper() {
+      return // noop. node is terminal
+    },
   }
   const handler = reduceRuleNodeHandlers[node.constructor.name] || todoReduceRuleNodeHandler
-  handler(node, depth, parent, key)
+  handler(node, depth, parent, key, lezerGrammar)
 }
 
 function reduceRuleNode(ruleNode, lezerGrammar) {
+  //console.log("raw rule tree log:"); console.log(ruleNode)
+  // FIXME call stack size exceeded
+  // -> avoid function calls: handler functions -> switch block
+  // -> avoid recursion -> manual stack management?
+  //console.log("raw rule tree fmt:"); formatRuleNode(ruleNode, process.stdout)
   const resultParent = []
-  // TODO more depth?
-  for (let depth = 1; depth < 1000; depth++) {
-    reduceRuleNodeInner(ruleNode, depth, resultParent, 0, lezerGrammar)
+  // make a deep copy of the orignal ruleNode,
+  // so we can retry if reduceRuleNodeInner does not terminate
+  const ruleNodeOriginal = lodash.cloneDeep(ruleNode)
+  // retry loop
+  let maxDepth = 1
+  for (maxDepth = 1; maxDepth < 100; maxDepth++) {
+    //console.log(`reduceRuleNode: maxDepth = ${maxDepth}`)
+    const globalState = {
+      reduced: false,
+    }
+    reduceRuleNodeInner(ruleNode, maxDepth, 0, globalState, resultParent, 0, lezerGrammar)
     if (resultParent[0]) {
       const result = resultParent[0]
-      //console.log(`reduced tree in ${depth} steps`)
+      //console.log(`reduced tree in ${maxDepth} steps`)
+      // debug
+      //console.log("reduced rule tree:"); formatRuleNode(ruleNode, process.stdout)
       return result
     }
+    //console.log(`reduceRuleNode ${maxDepth}: globalState.reduced = ${globalState.reduced}`)
+    // reset ruleNode and retry
+    ruleNode = ruleNodeOriginal
   }
+  console.log(`reduceRuleNode: warning: reached maxDepth = ${maxDepth}`)
+  function formatRuleNode(node, writer, depth = 0, maxDepth = 100) {
+    // note: cannot return full result because "RangeError: Invalid string length"
+    if (depth > maxDepth) {
+      writer.write(" ".repeat(depth) + "...\n")
+    }
+    if (!node) {
+      throw new Error("node is empty")
+    }
+    if (!node.constructor) {
+      console.log("formatRuleNode node:", node)
+      throw new Error("node.constructor is empty")
+    }
+    const name = node.constructor.name
+    let result = " ".repeat(depth) + `${name} ${node.start}\n`
+    if (node.expr) {
+      writer.write(result)
+      formatRuleNode(node.expr, writer, depth+1, maxDepth)
+      return
+    }
+    if (node.exprs) {
+      writer.write(result)
+      for (const expr of node.exprs) {
+        formatRuleNode(expr, writer, depth+1, maxDepth)
+      }
+      return
+    }
+    writer.write(result)
+  }
+  // FIXME
+  console.log(`reduceRuleNode: ruleNode:`)
+  formatRuleNode(ruleNode, process.stdout)
   throw new Error(`not reduced rule tree`)
   //console.log(`ruleNode 2:`); console.dir(ruleNode, {depth: null})
 }
 
 // random token generator
 // TODO linear token generator: 1, 2, 3, ... a, b, c, ...
-function getTokenGenerator(node) {
-  const handlers = {
+function generateToken(node, lezerGrammar) {
+  const generateTokenHandlers = {
     TokenWrapper(node) {
-      return getTokenGenerator(node.token)
+      //return generateToken(node.token, lezerGrammar)
+      // add whitespace around token
+      return " " + generateToken(node.token, lezerGrammar) + " "
     },
-    RuleDeclaration(node) {
-      return getTokenGenerator(node.expr)
+    ReducedExprWrapper(node, lezerGrammar) {
+      return generateToken(node.expr, lezerGrammar)
     },
-    RepeatExpression(node) {
-      return function evalRepeatExpression() {
+    RuleDeclaration(node, lezerGrammar) {
+      return generateToken(node.expr, lezerGrammar)
+    },
+    RepeatExpression(node, lezerGrammar) {
+      //return function evalRepeatExpression() {
         let length = 0
         if (node.kind == "*") {
-          length = Math.random() * randomMax // random
+          length = Math.round(Math.random() * randomMax) // random
           //length = 0 // minimal
         }
         else if (node.kind == "+") {
-          length = 1 + (Math.random() * randomMax) // random
+          length = 1 + Math.round(Math.random() * randomMax) // random
           //length = 1 // minimal. TODO avoid collisions?
+        }
+        else if (node.kind == "?") {
+          length = Math.round(Math.random()) // random
+          //length = 0 // minimal. TODO avoid collisions?
         }
         else {
           throw new Error(`not implemented: RepeatExpression#kind: ${node.kind}`)
         }
-        return Array.from({length}).map(() => getTokenGenerator(node.expr)).join("")
-      }
+        return Array.from({length}).map(() => generateToken(node.expr, lezerGrammar)).join("")
+      //}
     },
-    SetExpression(node) {
+    ChoiceExpression(node, lezerGrammar) {
+      //return function evalChoiceExpression() {
+        const randomMax = node.exprs.length - 1
+        const idx = Math.round(Math.random() * randomMax)
+        return generateToken(node.exprs[idx], lezerGrammar)
+      //}
+    },
+    SequenceExpression(node, lezerGrammar) {
+      return node.exprs.map(child => generateToken(child, lezerGrammar)).join("")
+    },
+    SetExpression(node, lezerGrammar) {
       if (node.inverted) {
         throw new Error(`not implemented: SetExpression#inverted: ${node.inverted}`)
       }
@@ -722,9 +936,40 @@ function getTokenGenerator(node) {
       //console.log(`SetExpression: range [${range[0]}, ${range[1]}] -> ${result} = ${char}`)
       return char
     },
+    LiteralExpression(node, lezerGrammar) {
+      return node.value
+      // TODO?
+      // add whitespace around literal
+      //return " " + node.value + " "
+    },
+    NameExpression(node, lezerGrammar) {
+      // resolve name to node
+      const name = node.id.name
+      const rule = lezerGrammar.rules.find(rule => rule.id.name == name)
+      if (rule) {
+        return generateToken(rule, lezerGrammar)
+      }
+      else {
+        // TODO? tokens.literals
+        // TODO? tokens.precedences
+        // TODO? tokens.conflicts
+        //console.log("lezerGrammar.tokens:"); console.dir(lezerGrammar.tokens, {depth: null})
+        const token = lezerGrammar.tokens.rules.find(token => token.id.name == name)
+        if (token) {
+          return generateToken(token, lezerGrammar)
+          // add whitespace around token
+          return " " + generateToken(token, lezerGrammar) + " "
+        }
+        else {
+          console.log(`lezerGrammar.rules:`, lezerGrammar.rules.map(rule => rule.id.name).join(" "))
+          console.log(`lezerGrammar.tokens:`, lezerGrammar.tokens.rules.map(rule => rule.id.name).join(" "))
+          throw new Error(`not found rule or token by name ${name}`)
+        }
+      }
+    },
   }
-  function todoHandler(node) {
-    console.log(`TODO: add to getTokenGenerator handlers:
+  function todoHandler(node, lezerGrammar) {
+    console.log(`TODO: add to generateTokenHandlers:
       ${node.constructor.name}(node) {
         return todo
       },
@@ -733,38 +978,75 @@ function getTokenGenerator(node) {
     console.dir(node)
     throw new Error(`not implemented: node name: ${node.constructor.name}`)
   }
-  const handler = handlers[node.constructor.name] || todoHandler
-  return handler(node)
+  const handler = generateTokenHandlers[node.constructor.name] || todoHandler
+  return handler(node, lezerGrammar)
 }
 
-function getRuleFuzzer(name, lezerGrammar) {
-  const ruleNode = lezerGrammar.rules.find(rule => rule.id.name == name)
+function getRuleFuzzer(ruleText, lezerGrammar) {
+  //console.log(`getRuleFuzzer: ruleString`, ruleText)
+  //console.log(`getRuleFuzzer: lezerGrammar.rules:`, lezerGrammar.rules.map(rule => rule.id.name).join(" "))
+  //console.log(`getRuleFuzzer: lezerGrammar.tokens:`, lezerGrammar.tokens.rules.map(rule => rule.id.name).join(" "))
+
+  const [_, name, quantifier] = ruleText.match(/^([a-zA-Z0-9_]+)([+*?]?)/)
+
+  let ruleNode = lezerGrammar.rules.find(rule => rule.id.name == name)
+
+  if (quantifier) {
+    // wrap ruleNode in RepeatExpression
+    class RepeatExpression {}
+    const expr = new RepeatExpression()
+    expr.start = ruleNode.start
+    expr.expr = ruleNode
+    expr.kind = quantifier
+    ruleNode = expr
+    //console.log(`getRuleFuzzer: wrapped ruleNode in RepeatExpression:`, ruleNode)
+  }
+
+  //console.log(`getRuleFuzzer: ruleNode`, ruleNode)
   const ruleNodeReduced = reduceRuleNode(ruleNode, lezerGrammar)
+  //console.log(`getRuleFuzzer: ruleNodeReduced`, ruleNodeReduced)
   //console.log("ruleNodeReduced:"); console.dir(ruleNodeReduced, {depth: null})
-  const thunk = getTokenGenerator(ruleNodeReduced)
+  return function ruleFuzzer() {
+    return generateToken(ruleNodeReduced, lezerGrammar)
+  }
+
+  const thunk = generateToken(ruleNodeReduced, lezerGrammar)
+  console.log(`generateToken: thunk:`, thunk)
+  //let step = 1
   return function ruleFuzzer() {
     while (true) {
-      let result = thunk() // returns result or next thunk
+      //console.log(`ruleFuzzer: step ${step}`)
+      let result = thunk
+      console.log(`generateToken: result:`, thunk)
       while (typeof result == "function") {
         result = result()
+        console.log(`generateToken: result() ->`, thunk)
       }
+      /*
+      // no, this is too strict, some fuzzers will not terminate (deadloop)
       if (oldTokens.has(result)) {
         // duplicate token -> retry
         continue
       }
       // unique token
       oldTokens.add(result)
+      */
       return result
     }
   }
 }
 
 function getOriginSample(node, lezerGrammar) {
+  // FIXME add whitespace around keywords like "friend" in cpp grammar (friend class)
+  //console.log(`getOriginSample: node`, node)
   if (node.children.length == 0) {
     // terminal node
     if (node.name.startsWith('"') && node.name.endsWith('"')) {
       return JSON.parse(node.name)
     }
+
+    // FIXME node.name: parse quantifiers like "virtualSpecifier+" -> rule name is "virtualSpecifier"
+
     // named terminal node
     // TODO resolve: expr -> INT -> [0-9]+ -> 0, 1, 2, 3, ...
     /*
@@ -774,13 +1056,21 @@ function getOriginSample(node, lezerGrammar) {
       reduce the rule to the simplest variant -> INT
     */
     //console.log(lezerGrammar.rules[0].id.name)
-    const fuzz = getRuleFuzzer(node.name, lezerGrammar)
-    //console.log("fuzz:"); console.dir(fuzz, {depth: null})
-    return fuzz()
+    //console.log(`getOriginSample: getRuleFuzzer`)
+    const ruleFuzzer = getRuleFuzzer(node.name, lezerGrammar)
+    //console.log("ruleFuzzer:"); console.dir(ruleFuzzer, {depth: null})
+    // FIXME this takes too long (deadloop)
+    //console.log(`getOriginSample: ruleFuzzer ...`)
+    /*
+    for (let i = 0; i < 100; i++) {
+      const ruleFuzzer = getRuleFuzzer(node.name, lezerGrammar)
+      console.log(`ruleFuzzer() try ${i} ->`, ruleFuzzer())
+    }
+    */
+    return ruleFuzzer()
   }
   else {
     // non-terminal node -> recursion
-    // TODO maybe add space between tokens: .join(" ")
     return node.children.map(child => getOriginSample(child, lezerGrammar)).join("")
   }
 }
