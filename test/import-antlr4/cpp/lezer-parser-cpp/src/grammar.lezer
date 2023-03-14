@@ -2029,8 +2029,8 @@ literal {
 }
 
 @skip {
-  Whitespace,
-  Newline,
-  BlockComment,
+  Whitespace |
+  Newline |
+  BlockComment |
   LineComment
 }

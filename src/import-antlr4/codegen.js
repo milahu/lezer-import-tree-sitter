@@ -525,10 +525,27 @@ function formatLexerRules(state) {
 
 
 function formatSkipRules(state) {
+  // https://lezer.codemirror.net/docs/guide/#skip-expressions
+  // TODO skip block with rules:
+  // @skip {} {
+  //   String {
+  //     stringOpen (stringEscape | stringContent)* stringClose
+  //   }
+  // }
+  // > The initial braces contain the skip expression
+  // > —in this case we want to skip nothing so it is empty—
+  // > and the second pair of braces contain rules
+  // > inside of which this skip expression is used.
   if (Array.from(state.skipRules).length == 0) {
     return ""
   }
-  const body = Array.from(state.skipRules).join(",\n")
+  // simple case:
+  // @skip { space | Comment }
+  // @tokens {
+  //   space { @whitespace+ }
+  //   Comment { "//" ![\n]* }
+  // }
+  const body = Array.from(state.skipRules).join(" |\n")
   return `@skip {\n${indentBlock(body)}\n}\n\n`
 }
 
