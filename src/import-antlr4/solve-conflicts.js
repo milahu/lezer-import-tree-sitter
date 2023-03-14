@@ -28,7 +28,7 @@ import antlr4 from 'antlr4';
 // export "class Input", maybe rename to GrammarInput
 // and/or export "function parseGrammar" with type: (text: string, name: string) => AST
 import { buildParser, Input as LezerGrammarInput } from "../lezer-generator.js"
-import { assert } from "console"
+//import { assert } from "console"
 import MagicString from "magic-string";
 
 import { formatErrorContext } from "../format-error-context.js"
@@ -137,9 +137,20 @@ lezerGeneratorError.message.replace(
 
 //console.log("conflicts:"); console.log(conflicts)
 
-function assert(cond) {
-  if (!cond) {
-    throw new Error("assertion error")
+function assert(condition, message) {
+  if (!condition) {
+    if (typeof message == "function") {
+      message = message()
+    }
+    if (message) {
+      console.error(message)
+    }
+    const error = new Error("assertion error")
+    const lines = error.stack.split("\n")
+    // remove line 2, so first stack frame is call to assert
+    lines.splice(1, 1)
+    error.stack = lines.join("\n")
+    throw error
   }
 }
 
