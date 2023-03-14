@@ -176,7 +176,8 @@ for (const conflict of lezerGeneratorError.conflicts) {
 
   conflict.solutions = conflict.solutions.map((text, idx) => {
     const op = conflict.ops[idx]
-    const tokens = text.split(" ")
+    // trim empty solution "expr -> "
+    const tokens = text.trim().split(" ")
     const source = tokens.shift()
     assert(tokens.shift() == "->")
     // is left solution?
