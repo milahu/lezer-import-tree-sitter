@@ -1278,6 +1278,7 @@ literal {
     UserDefinedCharacterLiteral
   }
 
+// FIXME Unused rule 'MultiLineMacro' (1281:2)
   MultiLineMacro {
     /// @TODO hidden token '#'(~[\n]*?'\\''\r'?'\n')+~[\n]+->channel(HIDDEN)
     '#' (
@@ -1289,6 +1290,7 @@ literal {
     ![\n] +
   }
 
+// FIXME Unused rule 'Directive' (1292:2)
   Directive {
     /// @TODO hidden token '#'~[\n]*->channel(HIDDEN)
     '#'
@@ -1396,6 +1398,7 @@ literal {
     'explicit'
   }
 
+// FIXME Unused rule 'Export' (1399:2)
   Export {
     'export'
   }
