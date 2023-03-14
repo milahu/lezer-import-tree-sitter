@@ -485,6 +485,7 @@ declSpecifier {
 }
 
 declSpecifierSeq {
+// FIXME quantifier: +? -> *
   declSpecifier+? attributeSpecifierSeq?
 }
 
