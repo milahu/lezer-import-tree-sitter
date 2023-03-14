@@ -160,6 +160,10 @@ const transpileOfNodeType = {
     return `${rulePrefix}${ruleName} {\n${indentBlock(ruleBody)}\n}\n\n`
   },
   LexerRuleSpecContext(node, state) {
+    // FIXME LexerRuleSpec
+    //  BlockComment {
+    //    '/*' .*? '*/'
+    //  }
     /*
     return todoNode(node, state)
     printNode(node, state)
@@ -334,6 +338,11 @@ const transpileOfNodeType = {
   },
   NotSetContext(node, state) {
     //return todoNode(node, state)
+    // FIXME NotSet
+    //  !(
+    //    LeftParen |
+    //    RightParen
+    //  )+
     // example: ~(a|b|c)
     // semantics: negation of (a|b|c)
     // -> (NOT a) AND (NOT b) AND (NOT c)
