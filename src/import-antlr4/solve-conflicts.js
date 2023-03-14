@@ -162,7 +162,8 @@ for (const conflict of lezerGeneratorError.conflicts) {
 
   if (doneFirstConflict) console.log("---")
 
-  conflict.inputTokens = conflict.input.split(" ")
+  // trim because input can start with " · "
+  conflict.inputTokens = conflict.input.trim().split(" ")
   //console.log(`conflict.inputTokens:`, conflict.inputTokens)
   // "·" = conflict position between 2 tokens,
   // usually left of the "problematic" token
