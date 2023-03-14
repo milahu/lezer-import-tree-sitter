@@ -250,7 +250,12 @@ for (const conflict of lezerGeneratorError.conflicts) {
         // (tokens.length + 1) to remove the conflict position "·"
         return "(" + tokens.join(" ") + ") " + conflict.inputTokens.slice(tokens.length + 1).join(" ")
       }
-      assert(tokens[1] == "·")
+      // FIXME tokens[0] == "·"
+      assert(tokens[1] == "·", () => {
+        console.log("conflict:", conflict)
+        console.log("tokens:", tokens)
+        console.log("conflict.inputTokens:", conflict.inputTokens)
+      })
       return (
         conflict.inputTokens.slice(0, conflict.inputTokens.length - tokens.length).join(" ") +
         " (" +
