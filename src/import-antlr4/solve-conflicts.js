@@ -21,7 +21,7 @@ FIXME conflict.input can start with "…"
 */
 
 import fs from "fs"
-import path from "path"
+import path, { parse } from "path"
 import child_process from "child_process"
 
 import * as antlrFormat from "./format.js"
@@ -38,6 +38,9 @@ import { buildParser, Input as LezerGrammarInput } from "../lezer-generator.js"
 import MagicString from "magic-string";
 
 import { formatErrorContext } from "../format-error-context.js"
+import { assert } from "../lib/assert.js";
+
+
 
 // global state
 const oldTokens = new Set()
@@ -46,8 +49,8 @@ const oldTokens = new Set()
 // higher value -> higher risk of deadloops
 // TODO linear token generator -> no deadloops
 //const randomMax = 5
-//const randomMax = 2 // deadloop?
-const randomMax = 3
+const randomMax = 2 // deadloop?
+//const randomMax = 3
 
 main()
 
@@ -80,10 +83,9 @@ const grammarMagicString = new MagicString(lezerGrammarText)
 //             this.ast = this.input.parse();
 //         });
 
-//console.log(`parsing grammar ...`)
-const lezerGrammar = (() => {
+function parseLezerGrammar(lezerGrammarText, filePath = "grammar.lezer") {
   try {
-    return new LezerGrammarInput(lezerGrammarText, "grammar.lezer").parse()
+    return new LezerGrammarInput(lezerGrammarText, filePath).parse()
   }
   catch (error) {
     //console.log(`error.constructor?.name`, error.constructor?.name)
@@ -97,17 +99,50 @@ const lezerGrammar = (() => {
         const lezerGrammarLines = lezerGrammarText.split("\n")
         const numLines = 10
         const contextLines = lezerGrammarLines.slice(+line - numLines, +line)
-        console.log("-".repeat(20))
-        console.log(contextLines.join("\n"))
-        console.log(" ".repeat(+column) + "^")
-        console.log("-".repeat(20))
+        const errorContext = [
+          "-".repeat(20),
+          contextLines.join("\n"),
+          " ".repeat(+column) + "^",
+          "-".repeat(20),
+        ].join("\n")
+        error.message = errorContext + "\n\n" + error.message
       }
     }
     throw error
   }
-})()
+}
+
+//console.log(`parsing grammar ...`)
+const lezerGrammar = parseLezerGrammar(lezerGrammarText)
 //console.log("lezerGrammar:"); console.dir(lezerGrammar, {depth: 10}); return
 //console.log(`parsing grammar done`)
+
+
+
+function buildLezerParser(lezerGrammarText) {
+  try {
+    const parser = buildParser(lezerGrammarText)
+    return {
+      parser,
+      error: null,
+    }
+  }
+  catch (error) {
+    if (
+      error.constructor?.name != "GenError" ||
+      !error.conflicts
+    ) {
+      throw error
+    }
+    return {
+      parser: null,
+      error,
+    }
+    // error.conflicts[0].error
+    // error.conflicts[0].rules
+    // error.conflicts[0].term // TODO term.start is conflict location in grammar text
+  }
+}
 
 
 
@@ -116,25 +151,15 @@ const lezerGrammar = (() => {
 // based on tree-sitter generator
 // https://github.com/tree-sitter/tree-sitter/tree/master/cli/src/generate
 console.log(`building parser ...`)
-let lezerGeneratorError = null
-try {
-  buildParser(lezerGrammarText)
+const parserResult = buildLezerParser(lezerGrammarText)
+console.log(`building parser done`)
+
+if (!parserResult.error) {
   console.log("no conflicts -> done")
   break // stop: loop grammar generations
 }
-catch (error) {
-  if (
-    error.constructor?.name != "GenError" ||
-    !error.conflicts
-  ) {
-    throw error
-  }
-  lezerGeneratorError = error
-  // error.conflicts[0].error
-  // error.conflicts[0].rules
-  // error.conflicts[0].term // TODO term.start is conflict location in grammar text
-}
-console.log(`building parser done`)
+
+const lezerGeneratorError = parserResult.error
 
 //console.log("lezerGeneratorError:"); console.log(lezerGeneratorError)
 console.log("lezerGeneratorError.message:"); console.log(lezerGeneratorError.message)
@@ -154,23 +179,6 @@ lezerGeneratorError.message.replace(
 */
 
 //console.log("conflicts:"); console.log(conflicts)
-
-function assert(condition, message) {
-  if (!condition) {
-    if (typeof message == "function") {
-      message = message()
-    }
-    if (message) {
-      console.error(message)
-    }
-    const error = new Error("assertion error")
-    const lines = error.stack.split("\n")
-    // remove line 2, so first stack frame is call to assert
-    lines.splice(1, 1)
-    error.stack = lines.join("\n")
-    throw error
-  }
-}
 
 
 
@@ -193,6 +201,13 @@ for (const conflict of lezerGeneratorError.conflicts) {
   // TODO use raw data from lezerGeneratorError.conflicts
   // convert to string for compatibility with old code
   conflict.solutions = conflict.solutions.map(solution => String(solution))
+
+  // FIXME tokens[0] == "·"
+  if (conflict.solutions.find(solution => solution.startsWith(" · "))) {
+    console.log(`FIXME tokens[0] == "·"`)
+    // skip this conflict
+    continue
+  }
 
   conflict.solutions = conflict.solutions.map((text, idx) => {
     const op = conflict.ops[idx]
@@ -313,40 +328,87 @@ for (const conflict of lezerGeneratorError.conflicts) {
       resultText,
     }
   })
-  //console.log(`conflict.solutions:`, conflict.solutions)
+  console.log(`conflict.solutions:`, conflict.solutions)
+
+  conflict.emptySolutionIdx = conflict.solutions.findIndex(solution => solution.isEmpty)
+  conflict.hasEmptySolution = (conflict.emptySolutionIdx != -1)
+  if (conflict.hasEmptySolution) {
+    // expected: solution 2 is empty
+    assert(conflict.emptySolutionIdx)
+  }
+
+
+
+  if (!conflict.hasEmptySolution) {
 
   conflict.originLines = conflict.origin.split("\n")
 
-  const originTopName = conflict.originLines[0].split(" ")[0]
-  conflict.originTree = createNode(originTopName)
+  const originTopName = conflict.originLines[0].trim().split(" ")[0]
+  //conflict.originTree = createNode(originTopName)
+  conflict.originTrees = []
+  let originTreeIdx = 0
+  conflict.originTrees[originTreeIdx] = createNode(originTopName)
 
-  let node = conflict.originTree
+  let node = conflict.originTrees[originTreeIdx]
 
   let lastLineIndent = ""
+  let skipThisConflict = false
+  let firstLineNextParentIdx = -1
+
   for (const originLine of conflict.originLines) {
-    //console.log(`originLine: ${originLine}`)
+
+    console.log(`originLine: ${originLine}`)
     const [_, lineIndent, lineRest] = originLine.match(/^( *)(.*)$/)
-    if (lineIndent.length < lastLineIndent.length) {
-      // on decrease of lineIndent, change the parent node
-      throw new Error(`indent decreased from ${lastLineIndent.length} to ${lineIndent.length} -> fixme: change parent node`)
-    }
     //console.log(`lineRest: ${lineRest}`)
-    const lineTokens = lineRest.split(" ")
-    //console.log(`lineTokens:`, lineTokens)
-    if (lineTokens[0] != "@top" || lineTokens[0] != "via") {
-      //continue
+
+    if (lineIndent.length < lastLineIndent.length) {
+      // on decrease of lineIndent, go to next originTree
+      console.log(`indent decreased from ${lastLineIndent.length} to ${lineIndent.length} -> next originTree`)
+      assert(lineIndent.length == 2)
+      originTreeIdx++
+      // copy the root node
+      conflict.originTrees[originTreeIdx] = {
+        ...conflict.originTrees[0]
+      }
+      node = conflict.originTrees[originTreeIdx]
+      node.children = conflict.originTrees[0].children.map(node => {
+        const copy = { ...node }
+        copy.children = []
+        return copy
+      })
+      console.log(`originTree 1:`, conflict.originTrees[0])
+      console.log(`originTree 2:`, conflict.originTrees[1])
+      console.log(`rootNode 2:`, node)
+      console.log(`firstLineNextParentIdx:`, firstLineNextParentIdx)
+      node = node.children[firstLineNextParentIdx]
     }
-    if (lineTokens[0] == "via") lineTokens.shift() // TODO what is "via"?
-    const left = lineTokens.shift()
-    const expectArrow = lineTokens.shift()
-    if (expectArrow != "->") {
-      throw new Error(`assertion error: expected "->", got ${expectArrow} in originLine: ${originLine}`)
+
+    console.log(`node:`, node)
+
+    const lineTokens = lineRest.trim().split(" ")
+    console.log(`lineTokens:`, lineTokens)
+
+    // skip "via" prefix
+    // all lines (except the first line and last line) start with "via " -> ignore
+    if (lineTokens[0] == "via") {
+      lineTokens.shift()
     }
+
+    // skip rule name
+    lineTokens.shift()
+
+    // skip rule arrow
+    assert(lineTokens[0] == "->")
+    lineTokens.shift()
+
     let nextParentIdx = -1
     for (const token of lineTokens) {
       if (token == "·") {
         // next token is next parent
         nextParentIdx = node.children.length
+        if (firstLineNextParentIdx == -1) {
+          firstLineNextParentIdx = nextParentIdx
+        }
         // skip this token
         continue
       }
@@ -360,6 +422,11 @@ for (const conflict of lezerGeneratorError.conflicts) {
     lastLineIndent = lineIndent
   }
 
+  if (skipThisConflict) {
+    continue
+  }
+
+
   // note: this tree is derived only from conflict.origin
   // but source of truth is conflict.inputTokens
 
@@ -367,7 +434,7 @@ for (const conflict of lezerGeneratorError.conflicts) {
   // -> source of truth is conflict.inputTokens
   // but the "wrong tree" is no problem,
   // because we simply join all nodes to a string
-  console.log("conflict.originTree:"); console.dir(conflict.originTree, {depth: null})
+  console.log("conflict.originTrees:"); console.dir(conflict.originTrees, {depth: null})
 
   // TODO generate many samples
   //conflict.originSample = getOriginSample(conflict.originTree, lezerGrammar)
@@ -457,52 +524,69 @@ for (const conflict of lezerGeneratorError.conflicts) {
     return parser
   }
 
-  // origin samples loop
-  //const originSampleIdxMax = 100
-  const originSampleIdxMax = 10
-  for (let originSampleIdx = 0; originSampleIdx < originSampleIdxMax; originSampleIdx++) {
-    const originSample = getOriginSample(conflict.originTree, lezerGrammar)
+  if (conflict.originTrees.length == 2) {
+    console.log(`TODO handle 2 originTrees`)
+  }
 
-    console.log(`origin sample ${originSampleIdx}: input:`, conflict.inputTokens.join(" "))
-    console.log(`origin sample ${originSampleIdx}: sample:`, originSample)
+  // origin tree loop
+  for (const originTree of conflict.originTrees) {
 
-    // TODO why "no viable alternative at input"? why different input than originSample?
-    const antlrParser = getANTLRParser(originSample)
-    antlrParser.buildParseTrees = true
-    // TODO verify topRule. maybe we must use the topRule of sharedOrigin
-    const topRule = antlrParser.ruleNames[0]
-    const tree = antlrParser[topRule]()
+    console.log(`origin tree loop: originTree:`, originTree)
 
-    const state = { source: originSample }
-    //console.log("antlr tree:"); antlrFormat.printNode(tree, state)
+    // origin samples loop
+    //const originSampleIdxMax = 100
+    const originSampleIdxMax = 10
+    for (let originSampleIdx = 0; originSampleIdx < originSampleIdxMax; originSampleIdx++) {
+      console.log(`origin tree loop: getOriginSample ...`)
+      const originSample = getOriginSample(originTree, lezerGrammar)
+      console.log(`origin tree loop: getOriginSample done`)
 
-    const antlrResultText = formatAntlrNode(tree)
+      console.log(`origin sample ${originSampleIdx}: input:`, conflict.inputTokens.join(" "))
+      console.log(`origin sample ${originSampleIdx}: sample:`, originSample)
 
-    console.log(`origin sample ${originSampleIdx}: solution 1:`, conflict.solutions[0].resultText)
-    console.log(`origin sample ${originSampleIdx}: expected  :`, antlrResultText)
-    console.log(`origin sample ${originSampleIdx}: solution 2:`, conflict.solutions[1].resultText)
+      // TODO why "no viable alternative at input"? why different input than originSample?
+      const antlrParser = getANTLRParser(originSample)
+      antlrParser.buildParseTrees = true
+      // TODO verify topRule. maybe we must use the topRule of sharedOrigin
+      const topRule = antlrParser.ruleNames[0]
+      const tree = antlrParser[topRule]()
 
-    let solution = conflict.solutions.find(solution => (
-      solution.resultText != null &&
-      solution.resultText.toLowerCase().slice(0, antlrResultText.length) == antlrResultText.toLowerCase()
-    ))
-    if (!solution) {
-      solution = conflict.solutions.find(solution => solution.resultText == null)
-    }
-    if (!solution) {
-      console.log(`origin sample ${originSampleIdx}: no solution was found`)
-      continue
-      //console.log("conflict"); console.dir(conflict, {depth: 3})
-      //return 1
-    }
+      const state = { source: originSample }
+      //console.log("antlr tree:"); antlrFormat.printNode(tree, state)
 
-    const solutionIdx = conflict.solutions.indexOf(solution)
-    console.log(`origin sample ${originSampleIdx}: using solution ${solutionIdx + 1}`)
-    //console.log("solution:", solution)
-    conflict.solution = solution
-    break
+      const antlrResultText = formatAntlrNode(tree)
 
-  } // origin samples loop
+      console.log(`origin sample ${originSampleIdx}: solution 1:`, conflict.solutions[0].resultText)
+      console.log(`origin sample ${originSampleIdx}: expected  :`, antlrResultText)
+      console.log(`origin sample ${originSampleIdx}: solution 2:`, conflict.solutions[1].resultText)
+
+      let solution = conflict.solutions.find(solution => (
+        solution.resultText != null &&
+        solution.resultText.toLowerCase().slice(0, antlrResultText.length) == antlrResultText.toLowerCase()
+      ))
+      if (!solution) {
+        solution = conflict.solutions.find(solution => solution.resultText == null)
+      }
+      if (!solution) {
+        console.log(`origin sample ${originSampleIdx}: no solution was found`)
+        continue
+        //console.log("conflict"); console.dir(conflict, {depth: 3})
+        //return 1
+      }
+
+      const solutionIdx = conflict.solutions.indexOf(solution)
+      console.log(`origin sample ${originSampleIdx}: using solution ${solutionIdx + 1}`)
+      //console.log("solution:", solution)
+      conflict.solution = solution
+      break
+
+    } // origin samples loop
+
+  } // origin tree loop
+
+  } // if (!conflict.hasEmptySolution)
+
+
 
   function getLezerName(name) {
     if (name.endsWith("Context")) {
@@ -535,79 +619,56 @@ for (const conflict of lezerGeneratorError.conflicts) {
 
 
 
+  if (!conflict.solution) {
+    // brute force: try some solutions, compare parse trees
+    console.log(`no solution was found. trying solution candidates`)
+    conflict.solutionCandidates = [
+      {
+        isLeft: true,
+      },
+      {
+        isOnlyPrecedence: true,
+      },
+      {
+        isRight: true,
+      },
+      {
+        isAmbiguity: true,
+      },
+    ]
+
+    conflict.solutionCandidates = conflict.solutionCandidates.map(solution => {
+      const grammarMagicString = new MagicString(lezerGrammarText)
+      applySolution(conflict, solution, grammarMagicString, lezerGrammar)
+      const lezerGrammarTextFixed = grammarMagicString.toString()
+      console.log(`lezerGrammarTextFixed:`)
+      console.log("-".repeat(20))
+      console.log(lezerGrammarTextFixed)
+      console.log("-".repeat(20))
+      console.log(`building parser ...`)
+      solution.parserResult = buildLezerParser(lezerGrammarTextFixed)
+      console.log(`building parser done`)
+      return solution
+    })
+
+    conflict.workingSolutions = conflict.solutionCandidates.filter(solution => solution.parserResult.parser)
+
+    if (conflict.workingSolutions.length == 0) {
+      throw new Error("not found conflict.workingSolutions")
+    }
+
+    console.log(`found ${conflict.workingSolutions.length} solutions from ${conflict.solutionCandidates.length} candidates:`)
+    console.log("conflict.workingSolutions:")
+    console.log(conflict.workingSolutions)
+
+    console.log("using the first working solution")
+    conflict.solution = conflict.workingSolutions[0]
+  }
+
   // add precedence marker to lezer grammar
   //console.log("lezerGrammar:"); console.log(lezerGrammar)
 
-  let precName
-  if (
-    lezerGrammar.precedences == null ||
-    lezerGrammar.precedences.items.length == 0
-  ) {
-    // create new precedence block
-    precName = "prec1"
-    const attr = (
-      conflict.solution.isLeft ? " @left" :
-      conflict.solution.isRight ? " @right" :
-      conflict.solution.isEmpty ? " @cut" : // TODO verify
-      // https://lezer.codemirror.net/docs/guide/#precedence
-      // > It is also possible,
-      // > instead of specifying an associativity for a given precedence,
-      // > to make it a cut operator by using the keyword @cut.
-      // > A cut operator will override other interpretations
-      // > even though no conflict was detected yet.
-      // @precedence { e1 @cut }
-      // @top Program { e+ }
-      // e { e1 | e2 }
-      // e1 { !e1 "x" ... }
-      // e2 { "x" ... }
-      // -> solve ambiguity of the keyword "x"
-      // example: statement { FunctionDeclaration | FunctionExpression }
-      ""
-    )
-    grammarMagicString.prependLeft(0, [
-      "@precedence {",
-      `  ${precName}${attr}`,
-      "}",
-      "",
-    ].map(line => line + "\n").join(""))
-  }
-  else {
-    // append to old precedence block
-    const oldPrecNames = new Set(lezerGrammar.precedences.items.map(p => p.id.name))
-    let precNumber = 1
-    function newPrecName() {
-      let name
-      while (true) {
-        name = `prec${precNumber}`
-        if (!oldPrecNames.has(name)) {
-          // found new name
-          oldPrecNames.add(name)
-          break
-        }
-        precNumber++
-      }
-      return name
-    }
-    precName = newPrecName()
-    const lastPrecDeclaration = lezerGrammar.precedences.items.slice(-1)[0]
-    //console.log("lastPrecDeclaration:", lastPrecDeclaration.constructor.name); console.dir(lastPrecDeclaration)
-    //console.log("lezerGrammar.precedences:"); console.dir(lezerGrammar.precedences)
-    // lezer-generator.js -> function parsePrecedence
-    // TODO what is "@cut"? seen in "function parsePrecedence"
-    const attr = (
-      conflict.solution.isLeft ? " @left" :
-      conflict.solution.isRight ? " @right" :
-      conflict.solution.isEmpty ? " @cut" : // TODO verify
-      ""
-    )
-    grammarMagicString.appendRight(lastPrecDeclaration.to, (
-      `, ${precName}${attr}\n`
-    ))
-  }
-
-  // TODO find the conflict position "·" in lezer grammar
-  // -> use conflict.term.start
-  grammarMagicString.prependLeft(conflict.term.start, `!${precName} `)
+  applySolution(conflict, solution, grammarMagicString, lezerGrammar)
 
   doneFirstConflict = true
 
@@ -677,6 +738,8 @@ function todoReduceRuleNodeHandler(node) {
 // TODO cache result, dont re-visit fully-reduced tree
 function reduceRuleNodeInner(node, maxDepth = 100, depth = 0, globalState = {}, parent, key, lezerGrammar) {
   //console.log(`reduce ${maxDepth}: ${" ".repeat(depth)}${node.constructor.name} ${node.start}`)
+  //console.log(`reduce ${maxDepth}:`, node)
+  //console.log(`reduce ${maxDepth}:`, new Error("loc").stack)
   const terminalNames = new Set([
     "TokenWrapper",
     "ReducedExprWrapper",
@@ -813,6 +876,7 @@ function reduceRuleNodeInner(node, maxDepth = 100, depth = 0, globalState = {}, 
 }
 
 function reduceRuleNode(ruleNode, lezerGrammar) {
+  console.log(`reduceRuleNode: ruleNode:`, ruleNode)
   //console.log("raw rule tree log:"); console.log(ruleNode)
   // FIXME call stack size exceeded
   // -> avoid function calls: handler functions -> switch block
@@ -829,6 +893,7 @@ function reduceRuleNode(ruleNode, lezerGrammar) {
     const globalState = {
       reduced: false,
     }
+    console.log(`reduceRuleNode: maxDepth = ${maxDepth}: reduceRuleNodeInner( ruleNode:`, ruleNode)
     reduceRuleNodeInner(ruleNode, maxDepth, 0, globalState, resultParent, 0, lezerGrammar)
     if (resultParent[0]) {
       const result = resultParent[0]
@@ -877,9 +942,15 @@ function reduceRuleNode(ruleNode, lezerGrammar) {
   //console.log(`ruleNode 2:`); console.dir(ruleNode, {depth: null})
 }
 
+
+
+// FIXME RangeError: Maximum call stack size exceeded
+
 // random token generator
 // TODO linear token generator: 1, 2, 3, ... a, b, c, ...
 function generateToken(node, lezerGrammar) {
+  //console.log(`generateToken: node:`, node)
+  console.log(`generateToken: node ${node.constructor.name} ${node.start} ${node.id?.name || node.kind || node.value || ""}`)
   const generateTokenHandlers = {
     TokenWrapper(node) {
       //return generateToken(node.token, lezerGrammar)
@@ -924,11 +995,26 @@ function generateToken(node, lezerGrammar) {
       return node.exprs.map(child => generateToken(child, lezerGrammar)).join("")
     },
     SetExpression(node, lezerGrammar) {
+      let ranges = node.ranges
       if (node.inverted) {
-        throw new Error(`not implemented: SetExpression#inverted: ${node.inverted}`)
+        ranges = []
+        if (node.ranges[0][0] != 0) {
+          ranges.push([0, node.ranges[0][0] - 1])
+        }
+        for (let i = 0; i < node.ranges.length; i++) {
+          if (node.ranges[i + 1]) {
+            ranges.push([node.ranges[i][1] + 1], node.ranges[i + 1][0] - 1)
+          }
+          else if (node.ranges[i][1] < 255) {
+            // last range
+            ranges.push([node.ranges[i][1] + 1], 255)
+          }
+        }
+        console.log(`inverted ranges from`, node.ranges, `to`, ranges)
+        //throw new Error(`not implemented: SetExpression#inverted: ${node.inverted}`)
       }
-      const rangeIdx = Math.round(Math.random() * (node.ranges.length - 1))
-      const range = node.ranges[rangeIdx]
+      const rangeIdx = Math.round(Math.random() * (ranges.length - 1))
+      const range = ranges[rangeIdx]
       // lower bound is inclusive -> range[0]
       // upper bound is exclusive -> range[1] - 1
       const result = range[0] + Math.round(Math.random() * ((range[1] - 1) - range[0]))
@@ -937,10 +1023,10 @@ function generateToken(node, lezerGrammar) {
       return char
     },
     LiteralExpression(node, lezerGrammar) {
-      return node.value
       // TODO?
       // add whitespace around literal
       //return " " + node.value + " "
+      return node.value
     },
     NameExpression(node, lezerGrammar) {
       // resolve name to node
@@ -956,7 +1042,7 @@ function generateToken(node, lezerGrammar) {
         //console.log("lezerGrammar.tokens:"); console.dir(lezerGrammar.tokens, {depth: null})
         const token = lezerGrammar.tokens.rules.find(token => token.id.name == name)
         if (token) {
-          return generateToken(token, lezerGrammar)
+          //return generateToken(token, lezerGrammar)
           // add whitespace around token
           return " " + generateToken(token, lezerGrammar) + " "
         }
@@ -983,14 +1069,28 @@ function generateToken(node, lezerGrammar) {
 }
 
 function getRuleFuzzer(ruleText, lezerGrammar) {
-  //console.log(`getRuleFuzzer: ruleString`, ruleText)
+  console.log(`getRuleFuzzer: ruleText`, ruleText)
   //console.log(`getRuleFuzzer: lezerGrammar.rules:`, lezerGrammar.rules.map(rule => rule.id.name).join(" "))
   //console.log(`getRuleFuzzer: lezerGrammar.tokens:`, lezerGrammar.tokens.rules.map(rule => rule.id.name).join(" "))
 
   const [_, name, quantifier] = ruleText.match(/^([a-zA-Z0-9_]+)([+*?]?)/)
 
+  console.log(`getRuleFuzzer: name`, name)
+  console.log(`getRuleFuzzer: quantifier`, quantifier)
+
+  assert(quantifier == "" || quantifier == "+")
+
   let ruleNode = lezerGrammar.rules.find(rule => rule.id.name == name)
 
+  if (!ruleNode) {
+    ruleNode = lezerGrammar.tokens.rules.find(rule => rule.id.name == name)
+  }
+
+  console.log(`getRuleFuzzer: ruleNode`, ruleNode)
+  assert(ruleNode, "getRuleFuzzer: not found ruleNode")
+
+  // ignore quantifier "+" -> minimal result
+  /*
   if (quantifier) {
     // wrap ruleNode in RepeatExpression
     class RepeatExpression {}
@@ -1001,6 +1101,7 @@ function getRuleFuzzer(ruleText, lezerGrammar) {
     ruleNode = expr
     //console.log(`getRuleFuzzer: wrapped ruleNode in RepeatExpression:`, ruleNode)
   }
+  */
 
   //console.log(`getRuleFuzzer: ruleNode`, ruleNode)
   const ruleNodeReduced = reduceRuleNode(ruleNode, lezerGrammar)
@@ -1038,7 +1139,7 @@ function getRuleFuzzer(ruleText, lezerGrammar) {
 
 function getOriginSample(node, lezerGrammar) {
   // FIXME add whitespace around keywords like "friend" in cpp grammar (friend class)
-  //console.log(`getOriginSample: node`, node)
+  console.log(`getOriginSample: node`, node)
   if (node.children.length == 0) {
     // terminal node
     if (node.name.startsWith('"') && node.name.endsWith('"')) {
@@ -1056,7 +1157,7 @@ function getOriginSample(node, lezerGrammar) {
       reduce the rule to the simplest variant -> INT
     */
     //console.log(lezerGrammar.rules[0].id.name)
-    //console.log(`getOriginSample: getRuleFuzzer`)
+    console.log(`getOriginSample: getRuleFuzzer( node:`, node)
     const ruleFuzzer = getRuleFuzzer(node.name, lezerGrammar)
     //console.log("ruleFuzzer:"); console.dir(ruleFuzzer, {depth: null})
     // FIXME this takes too long (deadloop)
@@ -1078,3 +1179,80 @@ function getOriginSample(node, lezerGrammar) {
 }
 
 
+
+function applySolution(conflict, solution, grammarMagicString, lezerGrammar) {
+  let precName
+  if (
+    lezerGrammar.precedences == null ||
+    lezerGrammar.precedences.items.length == 0
+  ) {
+    // create new precedence block
+    precName = "prec1"
+    const attr = (
+      solution.isLeft ? " @left" :
+      solution.isRight ? " @right" :
+      solution.isCut ? " @cut" : // TODO verify
+      // https://lezer.codemirror.net/docs/guide/#precedence
+      // > It is also possible,
+      // > instead of specifying an associativity for a given precedence,
+      // > to make it a cut operator by using the keyword @cut.
+      // > A cut operator will override other interpretations
+      // > even though no conflict was detected yet.
+      // @precedence { e1 @cut }
+      // @top Program { e+ }
+      // e { e1 | e2 }
+      // e1 { !e1 "x" ... }
+      // e2 { "x" ... }
+      // -> solve ambiguity of the keyword "x"
+      // example: statement { FunctionDeclaration | FunctionExpression }
+      ""
+    )
+    grammarMagicString.prependLeft(0, [
+      "@precedence {",
+      `  ${precName}${attr}`,
+      "}",
+      "",
+    ].map(line => line + "\n").join(""))
+  }
+  else {
+    // append to old precedence block
+    const oldPrecNames = new Set(lezerGrammar.precedences.items.map(p => p.id.name))
+    let precNumber = 1
+    function newPrecName() {
+      let name
+      while (true) {
+        name = `prec${precNumber}`
+        if (!oldPrecNames.has(name)) {
+          // found new name
+          oldPrecNames.add(name)
+          break
+        }
+        precNumber++
+      }
+      return name
+    }
+    precName = newPrecName()
+    const lastPrecDeclaration = lezerGrammar.precedences.items.slice(-1)[0]
+    //console.log("lastPrecDeclaration:", lastPrecDeclaration.constructor.name); console.dir(lastPrecDeclaration)
+    //console.log("lezerGrammar.precedences:"); console.dir(lezerGrammar.precedences)
+    // lezer-generator.js -> function parsePrecedence
+    // TODO what is "@cut"? seen in "function parsePrecedence"
+    const attr = (
+      solution.isLeft ? " @left" :
+      solution.isRight ? " @right" :
+      solution.isCut ? " @cut" : // TODO verify
+      ""
+    )
+    grammarMagicString.appendRight(lastPrecDeclaration.to, (
+      `, ${precName}${attr}\n`
+    ))
+  }
+
+  // TODO find the conflict position "·" in lezer grammar
+  // -> use conflict.term.start
+  if (conflict.term.start == -1) {
+    throw new Error("FIXME conflict.term.start == -1")
+  }
+  console.log(`applySolution: adding precedence marker !${precName} at position ${conflict.term.start}`)
+  grammarMagicString.prependLeft(conflict.term.start, `!${precName} `)
+}

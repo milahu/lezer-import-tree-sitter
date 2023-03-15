@@ -1,0 +1,63 @@
+// original conflict:
+// shift/reduce conflict between
+//   unqualifiedId -> · Identifier
+// and
+//   declSpecifierSeq -> 
+// With input:
+//    · Identifier …
+// Shared origin: declaration -> · functionDefinition
+//   via functionDefinition -> · declarator virtualSpecifier+ functionBody
+//     via declarator -> · noPointerDeclarator parametersAndQualifiers trailingReturnType
+//       via noPointerDeclarator -> · declaratorid attributeSpecifier+
+//         via declaratorid -> · idExpression
+//           via idExpression -> · unqualifiedId
+//             unqualifiedId -> · Identifier
+//   via functionDefinition -> · declSpecifierSeq declarator virtualSpecifier+ functionBody
+//     declSpecifierSeq -> ·
+
+// minimal conflict:
+// shift/reduce conflict between
+//   unqualifiedId+ -> · Identifier
+// and
+//   declSpecifierSeq -> 
+// With input:
+//    · Identifier …
+// Shared origin: @top -> · functionDefinition
+//   via functionDefinition -> · unqualifiedId+
+//     unqualifiedId+ -> · Identifier
+//   via functionDefinition -> · declSpecifierSeq unqualifiedId+
+//     declSpecifierSeq -> ·
+
+@precedence {
+  expected_solution_1 @left,
+  expected_solution_2
+}
+
+@top declaration {
+  functionDefinition
+}
+
+functionDefinition {
+  declSpecifierSeq? unqualifiedId+
+  //declSpecifierSeq? !expected_solution_1 unqualifiedId+
+  //declSpecifierSeq? !expected_solution_2 unqualifiedId+
+  //declSpecifierSeq? ~expected_solution_3 unqualifiedId+
+}
+
+declSpecifierSeq {
+  declSpecifier?
+}
+
+unqualifiedId {
+  Identifier
+}
+
+declSpecifier {
+  "y"
+}
+
+@tokens {
+  Identifier {
+    "x"
+  }
+}
