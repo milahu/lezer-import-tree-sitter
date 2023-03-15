@@ -485,7 +485,6 @@ declSpecifier {
 }
 
 declSpecifierSeq {
-// FIXME quantifier: +? -> *
   declSpecifier+? attributeSpecifierSeq?
 }
 
@@ -721,19 +720,12 @@ balancedTokenSeq {
 balancedtoken {
   LeftParen balancedTokenSeq RightParen |
   LeftBracket balancedTokenSeq RightBracket |
-  LeftBrace balancedTokenSeq RightBrace
+  LeftBrace balancedTokenSeq RightBrace |
 
-// FIXME NotSet
-//  |
-//  /// @TODO verify negation
-//  !(
-//    LeftParen |
-//    RightParen |
-//    LeftBrace |
-//    RightBrace |
-//    LeftBracket |
-//    RightBracket
-//  )+
+  /// inverse of (LeftParen|RightParen|LeftBrace|RightBrace|LeftBracket|RightBracket)
+  (IntegerLiteral|CharacterLiteral|FloatingLiteral|StringLiteral|BooleanLiteral|PointerLiteral|UserDefinedLiteral|MultiLineMacro|Directive|Alignas|Alignof|Asm|Auto|Bool|Break|Case|Catch|Char|Char16|Char32|Class|Const|Constexpr|Const_cast|Continue|Decltype|Default|Delete|Do|Double|Dynamic_cast|Else|Enum|Explicit|Export|Extern|False_|Final|Float|For|Friend|Goto|If|Inline|Int|Long|Mutable|Namespace|New|Noexcept|Nullptr|Operator|Override|Private|Protected|Public|Register|Reinterpret_cast|Return|Short|Signed|Sizeof|Static|Static_assert|Static_cast|Struct|Switch|Template|This|Thread_local|Throw|True_|Try|Typedef|Typeid_|Typename_|Union|Unsigned|Using|Virtual|Void|Volatile|Wchar|While|Plus|Minus|Star|Div|Mod|Caret|And|Or|Tilde|Not|Assign|Less|Greater|PlusAssign|MinusAssign|StarAssign|DivAssign|ModAssign|XorAssign|AndAssign|OrAssign|LeftShiftAssign|RightShiftAssign|Equal|NotEqual|LessEqual|GreaterEqual|AndAnd|OrOr|PlusPlus|MinusMinus|Comma|ArrowStar|Arrow|Question|Colon|Doublecolon|Semi|Dot|DotStar|Ellipsis|Identifier|DecimalLiteral|OctalLiteral|HexadecimalLiteral|BinaryLiteral|Integersuffix|UserDefinedIntegerLiteral|UserDefinedFloatingLiteral|UserDefinedStringLiteral|UserDefinedCharacterLiteral|Whitespace|Newline
+  // FIXME: |BlockComment
+  |LineComment)+
 }
 
 initDeclaratorList {
@@ -1278,23 +1270,21 @@ literal {
     UserDefinedCharacterLiteral
   }
 
-// FIXME Unused rule 'MultiLineMacro' (1281:2)
   MultiLineMacro {
     /// @TODO hidden token '#'(~[\n]*?'\\''\r'?'\n')+~[\n]+->channel(HIDDEN)
     '#' (
 
-      /// @TODO verify negation
+      /// inverse of [\n]
       ![\n] *? '\\' '\r'? '\n'
     )+
-    /// @TODO verify negation
+    /// inverse of [\n]
     ![\n] +
   }
 
-// FIXME Unused rule 'Directive' (1292:2)
   Directive {
     /// @TODO hidden token '#'~[\n]*->channel(HIDDEN)
     '#'
-    /// @TODO verify negation
+    /// inverse of [\n]
     ![\n] *
   }
 
@@ -1398,7 +1388,6 @@ literal {
     'explicit'
   }
 
-// FIXME Unused rule 'Export' (1399:2)
   Export {
     'export'
   }
@@ -1790,10 +1779,12 @@ literal {
     '...'
   }
 
+  /// fragment token
   Hexquad {
     HEXADECIMALDIGIT HEXADECIMALDIGIT HEXADECIMALDIGIT HEXADECIMALDIGIT
   }
 
+  /// fragment token
   Universalcharactername {
     '\\u' Hexquad |
     '\\U' Hexquad Hexquad
@@ -1806,15 +1797,18 @@ literal {
     )*
   }
 
+  /// fragment token
   Identifiernondigit {
     NONDIGIT |
     Universalcharactername
   }
 
+  /// fragment token
   NONDIGIT {
     $[a-zA-Z_]
   }
 
+  /// fragment token
   DIGIT {
     $[0-9]
   }
@@ -1849,18 +1843,22 @@ literal {
     )*
   }
 
+  /// fragment token
   NONZERODIGIT {
     $[1-9]
   }
 
+  /// fragment token
   OCTALDIGIT {
     $[0-7]
   }
 
+  /// fragment token
   HEXADECIMALDIGIT {
     $[0-9a-fA-F]
   }
 
+  /// fragment token
   BINARYDIGIT {
     $[01]
   }
@@ -1872,33 +1870,39 @@ literal {
     Longlongsuffix Unsignedsuffix?
   }
 
+  /// fragment token
   Unsignedsuffix {
     $[uU]
   }
 
+  /// fragment token
   Longsuffix {
     $[lL]
   }
 
+  /// fragment token
   Longlongsuffix {
     'll' |
     'LL'
   }
 
+  /// fragment token
   Cchar {
 
-    /// @TODO verify negation
+    /// inverse of ['\\\r\n]
     !['\\\r\n]  |
     Escapesequence |
     Universalcharactername
   }
 
+  /// fragment token
   Escapesequence {
     Simpleescapesequence |
     Octalescapesequence |
     Hexadecimalescapesequence
   }
 
+  /// fragment token
   Simpleescapesequence {
     '\\\'' |
     '\\"' |
@@ -1919,40 +1923,48 @@ literal {
     '\\v'
   }
 
+  /// fragment token
   Octalescapesequence {
     '\\' OCTALDIGIT |
     '\\' OCTALDIGIT OCTALDIGIT |
     '\\' OCTALDIGIT OCTALDIGIT OCTALDIGIT
   }
 
+  /// fragment token
   Hexadecimalescapesequence {
     '\\x' HEXADECIMALDIGIT+
   }
 
+  /// fragment token
   Fractionalconstant {
     Digitsequence? '.' Digitsequence |
     Digitsequence '.'
   }
 
+  /// fragment token
   Exponentpart {
     'e' SIGN? Digitsequence |
     'E' SIGN? Digitsequence
   }
 
+  /// fragment token
   SIGN {
     $[+-]
   }
 
+  /// fragment token
   Digitsequence {
     DIGIT (
       '\''? DIGIT
     )*
   }
 
+  /// fragment token
   Floatingsuffix {
     $[flFL]
   }
 
+  /// fragment token
   Encodingprefix {
     'u8' |
     'u' |
@@ -1960,30 +1972,32 @@ literal {
     'L'
   }
 
+  /// fragment token
   Schar {
 
-    /// @TODO verify negation
+    /// inverse of ["\\\r\n]
     !["\\\r\n]  |
     Escapesequence |
     Universalcharactername
   }
 
+  /// fragment token
   Rawstring {
     'R"' (
       (
         '\\' $["()]
       ) |
 
-      /// @TODO verify negation
+      /// inverse of [\r\n (]
       ![\r\n (]
     )*? '('
-    /// @TODO verify negation
+    /// inverse of [)]
     ![)] *? ')' (
       (
         '\\' $["()]
       ) |
 
-      /// @TODO verify negation
+      /// inverse of [\r\n "]
       ![\r\n "]
     )*? '"'
   }
@@ -2008,6 +2022,7 @@ literal {
     CharacterLiteral Udsuffix
   }
 
+  /// fragment token
   Udsuffix {
     Identifier
   }
@@ -2030,7 +2045,7 @@ literal {
 
   LineComment {
     '//'
-    /// @TODO verify negation
+    /// inverse of [\r\n]
     ![\r\n] *
   }
 }

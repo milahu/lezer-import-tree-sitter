@@ -141,7 +141,15 @@ if (lexerSourcePath) {
 const state = {
   sourcePath,
   source,
+  parser,
   tree,
+
+  // TODO rename state.tree to state.parserTree
+  parserSourcePath: sourcePath,
+  parserSource: source,
+  parserParser: parser,
+  parserTree: tree,
+
   lexerSourcePath,
   lexerSource,
   lexerParser, // TODO remove?

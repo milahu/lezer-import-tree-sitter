@@ -11,6 +11,7 @@ import { firstChild, nextSibling, getParent, nodeText, nodeType, findNode,
   filterNodes, reduceNodes, filterChildNodes } from './query.js'
 
 import { humanFormatNode, printNode, exitNode } from './format.js'
+import { assert } from "../lib/assert.js"
 
 export function commentLines(s, label = "") {
   s = String(s)
@@ -119,6 +120,7 @@ let doneFirstRule = false
 const transpileOfNodeType = {
   GrammarSpecContext(node, state) {
     // root node: skip last child: "<EOF>"
+    // TODO? use @eof token https://lezer.codemirror.net/docs/guide/#tokens
     node = firstChild(node)
     let result = ""
     while (node) {
@@ -172,30 +174,38 @@ const transpileOfNodeType = {
     //printNode(node, state, "LexerRuleSpecContext")
     const firstNode = node // LexerRuleSpecContext
     node = firstChild(node) // ruleName or "fragment"
-    if (nodeText(node, state) == "fragment") {
+    let isFragmentToken = false
+    if (
+      nodeText(node, state) == "fragment" &&
+      nodeText(nextSibling(node), state) != ":"
+    ) {
       // TODO handle fragment?
       // for now, just print a normal lexer rule
       // maybe rename the rule to `fragment_${ruleName}`
+      // note: recursive tokens must be tail-recursive
+      // example: SomeToken { "x" SomeToken? }
+      // https://lezer.codemirror.net/docs/guide/#tokens
       node = nextSibling(node) // ruleName
+      isFragmentToken = true
     }
     const ruleName = nodeText(node, state)
     node = nextSibling(node) // ":"
     node = nextSibling(node) // LexerRuleBlockContext
-    if (nodeText(nextSibling(node), state) != ";") {
-      throw new Error(`assertion error: node child-sibling-sibling has no nextSibling ";" in LexerRuleSpecContext:\n${todoNode(firstNode, state)}`)
-    }
+    assert(nodeText(nextSibling(node), state) == ";", (
+      `node child-sibling-sibling has no nextSibling ";" in LexerRuleSpecContext:\n${todoNode(firstNode, state)}`
+    ))
     node = firstChild(node) // LexerAltListContext
-    if (nextSibling(node)) {
-      throw new Error(`assertion error: node child-sibling-sibling-child has nextSibling in LexerRuleSpecContext:\n${todoNode(firstNode, state)}`)
-    }
+    assert(!nextSibling(node), (
+      `node child-sibling-sibling-child has nextSibling in LexerRuleSpecContext:\n${todoNode(firstNode, state)}`
+    ))
     node = firstChild(node) // LexerAltContext
     let ruleBody = ""
     let childIdx = 0
     while (node) {
       if (node.constructor.name == "c") {
-        if (nodeText(node, state) != "|") {
-          throw new Error(`assertion error: c-node between LexerAltContext is not "|" in LexerRuleSpecContext:\n${todoNode(firstNode, state)}`)
-        }
+        assert(nodeText(node, state) == "|", (
+          `c-node between LexerAltContext is not "|" in LexerRuleSpecContext:\n${todoNode(firstNode, state)}`
+        ))
         ruleBody += "|\n"
       }
       else {
@@ -204,9 +214,9 @@ const transpileOfNodeType = {
         //printNode(node, state, "node")
         //printNode(lec, state, "lec")
         //printNode(lcc, state, "lcc")
-        if (nextSibling(lcc)) {
-          throw new Error(`assertion error: node lcc ${childIdx} has nextSibling in LexerRuleSpecContext:\n${todoNode(firstNode, state)}`)
-        }
+        assert(!nextSibling(lcc), (
+          `node lcc ${childIdx} has nextSibling in LexerRuleSpecContext:\n${todoNode(firstNode, state)}`
+        ))
         if (lcc) {
           const lccText  = nodeText(lcc, state)
           if (lccText == "->skip") {
@@ -231,8 +241,9 @@ const transpileOfNodeType = {
       node = nextSibling(node) // LexerAltContext
     }
     state.lexerRules.push({
-      ruleName,
-      ruleBody,
+      name: ruleName,
+      body: ruleBody,
+      isFragmentToken,
     })
     //return `${ruleName} {\n${indentBlock(ruleBody)}\n}\n\n`
     // defer codegen to formatLexerRules
@@ -337,6 +348,8 @@ const transpileOfNodeType = {
     return `${label} { ${element} }`
   },
   NotSetContext(node, state) {
+    const fullNode = node
+    //printNode(node, state)
     //return todoNode(node, state)
     // FIXME NotSet
     //  !(
@@ -355,13 +368,75 @@ const transpileOfNodeType = {
     // in lezer, we can only negate regex character-classes:
     // ![a-z] = match all chars except a-z
     node = firstChild(node) // "~"
-    node = nextSibling(node)
-    const body = formatNode(node, state)
-    // use "!" to invert. TODO verify
+    //console.log(`NotSetContext: child:`, nodeType(node, state))
+    node = nextSibling(node) // BlockSetContext?
+    const type = nodeType(node, state)
+    if (type == "SetElementContext") {
+      // example: character class: ~[a-z] -> ![a-z]
+      const body = formatNode(node, state)
+      return (
+        "\n" +
+        commentLines(`inverse of ${nodeText(node, state)}`) +
+        `!${body}`
+      )
+    }
+    assert(type == "BlockSetContext", () => (
+      `unexpected type ${type} in\n${todoNode(fullNode, state)}`
+    ))
+    node = firstChild(node) // "("
+    node = nextSibling(node) // SetElementContext or "|" or ")"
+    const ruleNames = []
+    while (node) {
+      if (nodeType(node, state) == "SetElementContext") {
+        const name = formatNode(node, state).trim()
+        ruleNames.push(name)
+      }
+      else {
+        const text = nodeText(node, state)
+        assert(["|", ")"].includes(text), `unexpected node: ${text}`)
+      }
+      node = nextSibling(node)
+    }
+    // get inverse list of nodes
+    // TODO context? parser or lexer?
+    // guess context from rule names
+    /*
+    function pascalCase(s) {
+      return s[0].toUpperCase() + s.slice(1)
+    }
+    */
+    let allRuleNames = state.parserRuleNames
+    //.map(pascalCase)
+    if (!ruleNames.every(name => allRuleNames.includes(name))) {
+      /*
+      console.log(`ruleNames not found in state.parser.ruleNames`)
+      console.log(`ruleNames`, ruleNames)
+      */
+      /*
+      console.log(`state.parser.ruleNames`, state.parser.ruleNames)
+      console.log(`state.parser.ruleNames -> pascalCase`, allRuleNames)
+      console.log(`state.parser.symbolicNames`, state.parser.symbolicNames)
+      console.log(`state.parser`, state.parser) // wrong??
+      console.log(`state.tree`, state.tree)
+      console.log(`state.lexerParser`, state.lexerParser) // wrong??
+      */
+      /*
+      console.log(`state.lexerTree.children:`)
+      console.dir(state.lexerTree.children[1].children, {depth: 3})
+      throw new Error("TODO convert token names from UPPER_CASE to PascalCase?")
+      */
+      // switch context from parser to lexer
+      //allRuleNames = state.parser.symbolicNames
+      allRuleNames = state.lexerRuleNames
+    }
+    // TODO state.parser.literalNames?
+    assert(ruleNames.every(name => allRuleNames.includes(name)))
+    const inverseNames = allRuleNames.filter(name => !ruleNames.includes(name))
+    const body = "(" + inverseNames.join("|") + ")"
     return (
       "\n" +
-      "/// @TODO verify negation\n" +
-      `!${body}`
+      `/// inverse of (${ruleNames.join("|")})\n` +
+      `${body}`
     )
   },
 }
@@ -518,8 +593,11 @@ function formatLexerRules(state) {
     formatNode(state.lexerTree, state)
   }
   let result = ""
-  for (const {ruleName, ruleBody} of state.lexerRules) {
-    result += `${ruleName} {\n${indentBlock(ruleBody)}\n}\n\n`
+  for (const rule of state.lexerRules) {
+    if (rule.isFragmentToken) {
+      result += "/// fragment token\n"
+    }
+    result += `${rule.name} {\n${indentBlock(rule.body)}\n}\n\n`
   }
   if (result != "") {
     result = (
