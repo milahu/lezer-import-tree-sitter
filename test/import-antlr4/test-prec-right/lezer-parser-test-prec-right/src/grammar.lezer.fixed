@@ -1,8 +1,8 @@
 @precedence {
-  prec1 @left
-, prec2 @left
-, prec3 @right
-, prec4 @right
+  prec1 @left,
+  prec2 @left,
+  prec3 @right,
+  prec4 @right
 }
 
 @top prog {

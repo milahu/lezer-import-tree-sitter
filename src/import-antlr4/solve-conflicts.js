@@ -73,7 +73,6 @@ console.log(`grammarGeneration ${grammarGeneration}`)
 const grammarMagicString = new MagicString(lezerGrammarText)
 
 
-
 // @lezer/generator:
 //
 // class Builder {
@@ -1188,7 +1187,7 @@ function getOriginSample(node, lezerGrammar) {
 
 
 
-function applySolution(conflict, solution, grammarMagicString, lezerGrammar) {
+function applySolution(conflict, solution, /** @type {MagicString} */ grammarMagicString, lezerGrammar) {
   let precName
   if (
     lezerGrammar.precedences == null ||
@@ -1251,8 +1250,18 @@ function applySolution(conflict, solution, grammarMagicString, lezerGrammar) {
       solution.isCut ? " @cut" : // TODO verify
       ""
     )
+    const chunk = grammarMagicString.slice(0, lastPrecDeclaration.to)
+    // seek back to first non-whitespace
+    for (let i = 0; i < chunk.length; i++) {
+      if (/\s/.test(chunk[chunk.length - 1 - i])) {
+        lastPrecDeclaration.to--
+      }
+      else {
+        break
+      }
+    }
     grammarMagicString.appendRight(lastPrecDeclaration.to, (
-      `, ${precName}${attr}\n`
+      `,\n  ${precName}${attr}`
     ))
   }
 
