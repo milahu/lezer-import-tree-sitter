@@ -75,7 +75,8 @@
 
 @precedence {
   expected_solution_1 @left,
-  expected_solution_2
+  expected_solution_2,
+  prec1 @left
 }
 
 @top declaration {
@@ -84,7 +85,7 @@
 
 // FIXME fix this rule: add marker before "unqualifiedId+"
 functionDefinition {
-  declSpecifierSeq? unqualifiedId+
+  declSpecifierSeq? !prec1 unqualifiedId+
   //declSpecifierSeq? !expected_solution_1 unqualifiedId+
   //declSpecifierSeq? !expected_solution_2 unqualifiedId+
   //declSpecifierSeq? ~expected_solution_3 unqualifiedId+

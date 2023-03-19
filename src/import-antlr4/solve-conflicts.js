@@ -187,7 +187,7 @@ for (const conflict of lezerGeneratorError.conflicts) {
 
   if (doneFirstConflict) console.log("---")
 
-  console.log(`conflict:`); console.dir(conflict)
+  //console.log(`conflict:`); console.dir(conflict, {depth: 10})
 
   // trim because input can start with " · "
   conflict.inputTokens = conflict.input.trim().split(" ")
@@ -199,26 +199,41 @@ for (const conflict of lezerGeneratorError.conflicts) {
 
   // TODO use raw data from lezerGeneratorError.conflicts
   // convert to string for compatibility with old code
-  conflict.solutions = conflict.solutions.map(solution => String(solution))
+  //conflict.solutions = conflict.solutions.map(solution => String(solution))
+
+  conflict.solutions.map(solution => {
+    assert(solution.text === undefined)
+    solution.text = String(solution)
+  })
 
   // FIXME tokens[0] == "·"
-  if (conflict.solutions.find(solution => solution.startsWith(" · "))) {
-    console.log(`FIXME tokens[0] == "·"`)
+  if (conflict.solutions.find(solution => solution.text.startsWith(" · "))) {
+    throw new Error(`FIXME tokens[0] == "·"`)
     // skip this conflict
     continue
   }
 
-  conflict.solutions = conflict.solutions.map((text, idx) => {
-    const op = conflict.ops[idx]
+  conflict.solutions.map((solution, solutionIdx) => {
+    console.log(`solution[${solutionIdx}]:`, solution)
+    assert(solution.op === undefined)
+    assert(solution.source === undefined)
+    assert(solution.tokens === undefined)
+    assert(solution.leftOverlap === undefined)
+    assert(solution.rightOverlap === undefined)
+    assert(solution.isLeft === undefined)
+    assert(solution.isRight === undefined)
+    assert(solution.isEmpty === undefined)
+    assert(solution.resultText === undefined)
+    const op = conflict.ops[solutionIdx]
     // trim empty solution "expr -> "
-    const tokens = text.trim().split(" ")
+    const tokens = solution.text.trim().split(" ")
     const source = tokens.shift()
     assert(tokens.shift() == "->")
-    const isEmpty = (tokens.length == 0)
+    const isEmpty = (tokens.length == 1 && tokens[0] == "·")
     if (isEmpty) {
-      return {
+      Object.assign(solution, {
         op,
-        text,
+        //text: solution.text,
         source,
         tokens,
         leftOverlap: 0,
@@ -227,7 +242,8 @@ for (const conflict of lezerGeneratorError.conflicts) {
         isRight: false,
         isEmpty,
         resultText: "",
-      }
+      })
+      return
     }
     // is left solution?
     let leftOverlap = 0
@@ -281,7 +297,9 @@ for (const conflict of lezerGeneratorError.conflicts) {
     //const isRight = tokens.length == rightOverlap
     const isRight = (rightOverlap == 4)
     //console.log(`190 tokens:`); console.dir({ tokens, inputTokens: conflict.inputTokens, leftOverlap, rightOverlap })
-    assert(leftOverlap != rightOverlap)
+    assert(leftOverlap != rightOverlap, () => {
+      console.dir({inputTokens: conflict.inputTokens, tokens, isEmpty, leftOverlap, rightOverlap})
+    })
     if (isRight) {
       //console.log(`patching inputTokens. before:`, conflict.inputTokens.join(" "))
       // patch the right-most input token
@@ -298,7 +316,9 @@ for (const conflict of lezerGeneratorError.conflicts) {
       if (isLeft) {
         // format result nodes with parens
         // (tokens.length + 1) to remove the conflict position "·"
-        return "(" + tokens.join(" ") + ") " + conflict.inputTokens.slice(tokens.length + 1).join(" ")
+        const cleanTokens = tokens.filter(token => token != "·")
+        const result = "(" + cleanTokens.join(" ") + ") " + conflict.inputTokens.slice(cleanTokens.length + 1).join(" ")
+        return result
       }
       // FIXME tokens[0] == "·"
       assert(tokens[1] == "·", () => {
@@ -306,17 +326,19 @@ for (const conflict of lezerGeneratorError.conflicts) {
         console.log("tokens:", tokens)
         console.log("conflict.inputTokens:", conflict.inputTokens)
       })
-      return (
+      const result = (
         conflict.inputTokens.slice(0, conflict.inputTokens.length - tokens.length).join(" ") +
         " (" +
         (tokens.slice(0, 1).concat(tokens.slice(2))).join(" ") +
         ")"
       )
+      console.log(`300 resultText isLeft=false -> ${result}`)
+      return result
     })(isLeft)
 
-    return {
+    Object.assign(solution, {
       op,
-      text,
+      //text,
       source,
       tokens,
       leftOverlap,
@@ -325,22 +347,53 @@ for (const conflict of lezerGeneratorError.conflicts) {
       isRight,
       isEmpty,
       resultText,
-    }
+    })
   })
   console.log(`conflict.solutions:`, conflict.solutions)
 
   conflict.emptySolutionIdx = conflict.solutions.findIndex(solution => solution.isEmpty)
   conflict.hasEmptySolution = (conflict.emptySolutionIdx != -1)
+
   if (conflict.hasEmptySolution) {
-    // expected: solution 2 is empty
-    assert(conflict.emptySolutionIdx)
+    // expected: solution 2 is empty = reduced to nothing
+    assert(conflict.emptySolutionIdx == 1)
+    assert(conflict.solutions.filter(solution => solution.isEmpty).length == 1)
+    conflict.solution = conflict.solutions[conflict.emptySolutionIdx]
+    // lezer returns a "wrong" conflict.term
+    // see also: test/import-antlr4/cpp/lezer-parser-cpp/src/grammar.lezer.fixme2
+    //conflict.term = 
+    // find the shared origin
+    function getTerms(term) {
+      const terms = []
+      terms.push(term)
+      while (term.via) {
+        term = term.via
+        terms.push(term)
+      }
+      return terms
+    }
+    const terms1 = getTerms(conflict.solutions[0])
+    /*
+    const terms2 = getTerms(conflict.solutions[1])
+    console.log(`terms1: term 0:`, terms1[0])
+    terms1.map((term, idx) => console.log(`terms1: term ${idx}:`, term.rule.name.name))
+    terms2.map((term, idx) => console.log(`terms2: term ${idx}:`, term.rule.name.name))
+    */
+    //throw new Error("todo")
+    // TODO verify
+    conflict.term = terms1[0]
+    console.log(`380: fixing conflict.term:`, conflict.term.rule.name.name)
+    console.log(`380: using left solution`)
+    conflict.solution = {
+      isLeft: true,
+    }
   }
-
-
 
   if (!conflict.hasEmptySolution) {
 
-  conflict.originLines = conflict.origin.split("\n")
+  // TODO use raw data in conflict.solutions
+  // see "findConflictOrigin" and "addAction" in lezer-generator.js
+  conflict.originLines = conflict.originText.split("\n")
 
   const originTopName = conflict.originLines[0].trim().split(" ")[0]
   //conflict.originTree = createNode(originTopName)
@@ -426,7 +479,7 @@ for (const conflict of lezerGeneratorError.conflicts) {
   }
 
 
-  // note: this tree is derived only from conflict.origin
+  // note: this tree is derived only from conflict.originText
   // but source of truth is conflict.inputTokens
 
   // note: wrong tree. some nodes have wrong associativity
@@ -559,12 +612,16 @@ for (const conflict of lezerGeneratorError.conflicts) {
       console.log(`origin sample ${originSampleIdx}: expected  :`, antlrResultText)
       console.log(`origin sample ${originSampleIdx}: solution 2:`, conflict.solutions[1].resultText)
 
+      function normalizeSolutionText(text) {
+        // lowercase + remove all leading parens
+        const result = text.toLowerCase().replace(/^\(+/, "")
+        console.log(`normalizeSolutionText: ${text} -> ${result}`)
+        return result
+      }
+
       let solution = conflict.solutions.find(solution => (
         solution.resultText != null &&
-        (
-          solution.resultText.toLowerCase().slice(0, antlrResultText.length) == antlrResultText.toLowerCase() ||
-          `(${solution.resultText}) "<EOF>"`.toLowerCase() == antlrResultText.toLowerCase()
-        )
+        normalizeSolutionText(antlrResultText).startsWith(normalizeSolutionText(solution.resultText))
       ))
 
       /*
@@ -1188,42 +1245,101 @@ function getOriginSample(node, lezerGrammar) {
 
 
 function applySolution(conflict, solution, /** @type {MagicString} */ grammarMagicString, lezerGrammar) {
-  let precName
-  if (
-    lezerGrammar.precedences == null ||
-    lezerGrammar.precedences.items.length == 0
-  ) {
-    // create new precedence block
-    precName = "prec1"
-    const attr = (
-      solution.isLeft ? " @left" :
-      solution.isRight ? " @right" :
-      solution.isCut ? " @cut" : // TODO verify
-      // https://lezer.codemirror.net/docs/guide/#precedence
-      // > It is also possible,
-      // > instead of specifying an associativity for a given precedence,
-      // > to make it a cut operator by using the keyword @cut.
-      // > A cut operator will override other interpretations
-      // > even though no conflict was detected yet.
-      // @precedence { e1 @cut }
-      // @top Program { e+ }
-      // e { e1 | e2 }
-      // e1 { !e1 "x" ... }
-      // e2 { "x" ... }
-      // -> solve ambiguity of the keyword "x"
-      // example: statement { FunctionDeclaration | FunctionExpression }
-      ""
-    )
-    grammarMagicString.prependLeft(0, [
-      "@precedence {",
-      `  ${precName}${attr}`,
-      "}",
-      "",
-    ].map(line => line + "\n").join(""))
+  let markerChar = "!"
+  let markerType = "prec" // precedence marker
+  let markerName
+  /*
+  // TODO analyze: find all ConflictMarker nodes in node.markers of every node
+  if (solution.isEmpty) {
+    markerChar = "~"
+    markerType = "ambig" // ambiguity marker
   }
-  else {
-    // append to old precedence block
-    const oldPrecNames = new Set(lezerGrammar.precedences.items.map(p => p.id.name))
+  */
+  if (markerType == "prec") {
+    // add marker to @precedence block
+    // TODO refactor
+    if (
+      lezerGrammar.precedences == null ||
+      lezerGrammar.precedences.items.length == 0
+    ) {
+      // create new precedence block
+      markerName = "prec1"
+      const attr = (
+        solution.isLeft ? " @left" :
+        solution.isRight ? " @right" :
+        solution.isEmpty ? "" :
+        solution.isCut ? " @cut" : // TODO verify
+        // https://lezer.codemirror.net/docs/guide/#precedence
+        // > It is also possible,
+        // > instead of specifying an associativity for a given precedence,
+        // > to make it a cut operator by using the keyword @cut.
+        // > A cut operator will override other interpretations
+        // > even though no conflict was detected yet.
+        // @precedence { e1 @cut }
+        // @top Program { e+ }
+        // e { e1 | e2 }
+        // e1 { !e1 "x" ... }
+        // e2 { "x" ... }
+        // -> solve ambiguity of the keyword "x"
+        // example: statement { FunctionDeclaration | FunctionExpression }
+        ""
+      )
+      grammarMagicString.prependLeft(0, [
+        "@precedence {",
+        `  ${markerName}${attr}`,
+        "}",
+        "",
+      ].map(line => line + "\n").join(""))
+    }
+    else {
+      // append to old precedence block
+      const oldPrecNames = new Set(lezerGrammar.precedences.items.map(p => p.id.name))
+      let precNumber = 1
+      function newPrecName() {
+        let name
+        while (true) {
+          name = `prec${precNumber}`
+          if (!oldPrecNames.has(name)) {
+            // found new name
+            oldPrecNames.add(name)
+            break
+          }
+          precNumber++
+        }
+        return name
+      }
+      markerName = newPrecName()
+      const lastPrecDeclaration = lezerGrammar.precedences.items.slice(-1)[0]
+      //console.log("lastPrecDeclaration:", lastPrecDeclaration.constructor.name); console.dir(lastPrecDeclaration)
+      //console.log("lezerGrammar.precedences:"); console.dir(lezerGrammar.precedences)
+      // lezer-generator.js -> function parsePrecedence
+      // TODO what is "@cut"? seen in "function parsePrecedence"
+      const attr = (
+        solution.isLeft ? " @left" :
+        solution.isRight ? " @right" :
+        solution.isEmpty ? "" :
+        solution.isCut ? " @cut" : // TODO verify
+        ""
+      )
+      const chunk = grammarMagicString.slice(0, lastPrecDeclaration.to)
+      // seek back to first non-whitespace
+      for (let i = 0; i < chunk.length; i++) {
+        if (/\s/.test(chunk[chunk.length - 1 - i])) {
+          lastPrecDeclaration.to--
+        }
+        else {
+          break
+        }
+      }
+      grammarMagicString.appendRight(lastPrecDeclaration.to, (
+        `,\n  ${markerName}${attr}`
+      ))
+    }
+  }
+  else if (markerType == "conflict") {
+    console.dir(lezerGrammar, {depth: 10})
+    throw new Error("todo")
+    const oldAmbigNames = new Set(lezerGrammar.precedences.items.map(p => p.id.name))
     let precNumber = 1
     function newPrecName() {
       let name
@@ -1238,38 +1354,21 @@ function applySolution(conflict, solution, /** @type {MagicString} */ grammarMag
       }
       return name
     }
-    precName = newPrecName()
+    markerName = newPrecName()
     const lastPrecDeclaration = lezerGrammar.precedences.items.slice(-1)[0]
-    //console.log("lastPrecDeclaration:", lastPrecDeclaration.constructor.name); console.dir(lastPrecDeclaration)
-    //console.log("lezerGrammar.precedences:"); console.dir(lezerGrammar.precedences)
-    // lezer-generator.js -> function parsePrecedence
-    // TODO what is "@cut"? seen in "function parsePrecedence"
-    const attr = (
-      solution.isLeft ? " @left" :
-      solution.isRight ? " @right" :
-      solution.isCut ? " @cut" : // TODO verify
-      ""
-    )
-    const chunk = grammarMagicString.slice(0, lastPrecDeclaration.to)
-    // seek back to first non-whitespace
-    for (let i = 0; i < chunk.length; i++) {
-      if (/\s/.test(chunk[chunk.length - 1 - i])) {
-        lastPrecDeclaration.to--
-      }
-      else {
-        break
-      }
-    }
-    grammarMagicString.appendRight(lastPrecDeclaration.to, (
-      `,\n  ${precName}${attr}`
-    ))
   }
 
   // TODO find the conflict position "·" in lezer grammar
   // -> use conflict.term.start
-  if (conflict.term.start == -1) {
-    throw new Error("FIXME conflict.term.start == -1")
+  const conflictPosition = (
+    conflict.term.start ||
+    conflict.term.rule.name.start
+  )
+  if (conflictPosition == -1 || conflictPosition === undefined) {
+    console.log("conflict.term:")
+    console.dir(conflict.term, {depth: null})
+    throw new Error(`FIXME conflictPosition == ${conflictPosition}`)
   }
-  console.log(`applySolution: adding precedence marker !${precName} at position ${conflict.term.start}`)
-  grammarMagicString.prependLeft(conflict.term.start, `!${precName} `)
+  console.log(`applySolution: adding precedence marker ${markerChar}${markerName} at position ${conflictPosition}`)
+  grammarMagicString.prependLeft(conflictPosition, `${markerChar}${markerName} `)
 }

@@ -402,14 +402,23 @@ class TermSet {
     }
     term(name, nodeName, flags = 0, props = {}, start = -1, to = -1) {
         // TODO milahu trace Term "*"
-        //console.log(`400 new term.name`, name, new Error().stack)
+        //if (name == "unqualifiedId")
+        if (
+            start == -1 &&
+            name != "␄" &&
+            name != "⚠" &&
+            name != "%noskip"
+            // TODO more?
+        ) {
+            throw new Error(`FIXME implement term.start for term.name=${name}`)
+        }
         let term = new Term(name, flags, nodeName, props, start, to);
         this.terms.push(term);
         this.names[name] = term;
         return term;
     }
-    makeTop(nodeName, props) {
-        const term = this.term("@top", nodeName, 2 /* TermFlag.Top */, props);
+    makeTop(nodeName, props, start = -1, to = -1) {
+        const term = this.term("@top", nodeName, 2 /* TermFlag.Top */, props, start, to);
         this.tops.push(term);
         return term;
     }
@@ -417,11 +426,11 @@ class TermSet {
         // TODO milahu trace Term "*"
         return this.term(name, nodeName, 1 /* TermFlag.Terminal */, props, start, to);
     }
-    makeNonTerminal(name, nodeName, props = {}) {
-        return this.term(name, nodeName, 0, props);
+    makeNonTerminal(name, nodeName, props = {}, start = -1, to = -1) {
+        return this.term(name, nodeName, 0, props, start, to);
     }
-    makeRepeat(name) {
-        return this.term(name, null, 16 /* TermFlag.Repeated */);
+    makeRepeat(name, start = -1, to = -1) {
+        return this.term(name, null, 16 /* TermFlag.Repeated */, {}, start, to);
     }
     uniqueName(name) {
         for (let i = 0;; i++) {
@@ -1721,13 +1730,15 @@ class State {
             error += findConflictOrigin(conflictPos, positions[0]);
             const c = new Conflict(error, rules, value.term)
             c.input = `${positions[0].trail(70)} · ${value.term} …`;
-            // TODO better, pass raw data
-            c.origin = findConflictOrigin(conflictPos, positions[0]).slice("Shared origin: ".length);
+            c.originText = findConflictOrigin(conflictPos, positions[0]).slice("Shared origin: ".length);
             c.ops = (conflict instanceof Shift) ? ["shift", "reduce"] : ["reduce", "reduce"]
             // conflict between solution 0 and solution 1
             c.solutions = [
-                ((conflict instanceof Shift) ? conflictPos : conflictPos.rule),
-                positions[0].rule
+                //((conflict instanceof Shift) ? conflictPos : conflictPos.rule),
+                //positions[0].rule
+                // arguments to findConflictOrigin
+                conflictPos,
+                positions[0]
             ]
             conflicts.push(c);
         }
@@ -2430,7 +2441,7 @@ class Builder {
                 this.used(rule.id.name);
                 this.currentSkip.push(skip);
                 let { name, props } = this.nodeInfo(rule.props, "a", rule.id.name, none, none, rule.expr);
-                let term = this.terms.makeTop(name, props);
+                let term = this.terms.makeTop(name, props, rule.start);
                 this.namedTerms[name] = term;
                 this.defineRule(term, this.normalizeExpr(rule.expr));
                 this.currentSkip.pop();
@@ -2464,11 +2475,11 @@ class Builder {
     used(name) {
         this.ruleNames[name] = null;
     }
-    newName(base, nodeName = null, props = {}) {
+    newName(base, nodeName = null, props = {}, start = -1, to = -1) {
         for (let i = nodeName ? 0 : 1;; i++) {
             let name = i ? `${base}-${i}` : base;
             if (!this.terms.names[name])
-                return this.terms.makeNonTerminal(name, nodeName === true ? null : nodeName, props);
+                return this.terms.makeNonTerminal(name, nodeName === true ? null : nodeName, props, start, to);
         }
     }
     prepareParser() {
@@ -3014,7 +3025,7 @@ class Builder {
         if (known)
             return p(known.term);
         let name = expr.expr.prec < expr.prec ? `(${expr.expr})+` : `${expr.expr}+`;
-        let term = this.terms.makeRepeat(this.terms.uniqueName(name));
+        let term = this.terms.makeRepeat(this.terms.uniqueName(name), expr.expr.start);
         this.built.push(new BuiltRule("+", [expr.expr], term));
         this.defineRule(term, this.normalizeExpr(expr.expr).concat(p(term, term)));
         return p(term);
@@ -3076,7 +3087,7 @@ class Builder {
             this.warn(`Can't export parameterized rules`, rule.start);
         if (exported && inline)
             this.warn(`Can't export inline rule`, rule.start);
-        let name = this.newName(rule.id.name + (args.length ? "<" + args.join(",") + ">" : ""), nodeName || true, props);
+        let name = this.newName(rule.id.name + (args.length ? "<" + args.join(",") + ">" : ""), nodeName || true, props, rule.id.start);
         if (explicitInline)
             name.inline = true;
         if (dynamicPrec)
@@ -3617,7 +3628,7 @@ class TokenSet {
         if (!rule)
             return null;
         let { name: nodeName, props, dialect, exported } = this.b.nodeInfo(rule.props, "d", name, expr.args, rule.params.length != expr.args.length ? none : rule.params);
-        let term = this.b.makeTerminal(expr.toString(), nodeName, props);
+        let term = this.b.makeTerminal(expr.toString(), nodeName, props, expr.start);
         if (dialect != null)
             (this.byDialect[dialect] || (this.byDialect[dialect] = [])).push(term);
         if ((term.nodeType || exported) && rule.params.length == 0) {
