@@ -562,11 +562,19 @@ for (const conflict of lezerGeneratorError.conflicts) {
 
       let solution = conflict.solutions.find(solution => (
         solution.resultText != null &&
-        solution.resultText.toLowerCase().slice(0, antlrResultText.length) == antlrResultText.toLowerCase()
+        (
+          solution.resultText.toLowerCase().slice(0, antlrResultText.length) == antlrResultText.toLowerCase() ||
+          `(${solution.resultText}) "<EOF>"`.toLowerCase() == antlrResultText.toLowerCase()
+        )
       ))
+
+      /*
       if (!solution) {
+        // TODO why?
         solution = conflict.solutions.find(solution => solution.resultText == null)
       }
+      */
+
       if (!solution) {
         console.log(`origin sample ${originSampleIdx}: no solution was found`)
         continue
@@ -668,7 +676,7 @@ for (const conflict of lezerGeneratorError.conflicts) {
   // add precedence marker to lezer grammar
   //console.log("lezerGrammar:"); console.log(lezerGrammar)
 
-  applySolution(conflict, solution, grammarMagicString, lezerGrammar)
+  applySolution(conflict, conflict.solution, grammarMagicString, lezerGrammar)
 
   doneFirstConflict = true
 
